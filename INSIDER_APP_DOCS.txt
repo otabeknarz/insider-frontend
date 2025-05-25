@@ -1,0 +1,48 @@
+# INSIDER APP DOCUMENTATION
+
+## Project Overview
+- Next.js task management application (similar to Trello)
+- For internal management and task tracking
+
+## Key Features
+1. Authentication system with protected routes
+2. Light and dark mode support
+3. Multilingual support (Uzbek and English)
+4. Task management interface (Trello-like)
+
+## Technical Stack
+- Next.js 15.3.2
+- React 19.0.0
+- Shadcn/UI for components
+- Tailwind CSS for styling
+- next-intl for internationalization
+- next-auth for authentication
+
+## Design Principles
+- Simple, polished UI
+- Responsive design
+- Intuitive user experience
+- Consistent styling across components
+
+## Implementation Plan
+1. Set up authentication (next-auth)
+2. Create protected routes
+3. Implement language switching
+4. Implement theme switching (light/dark)
+5. Build core task management components
+6. Create dashboard layout
+
+## Pages Structure
+- /login - Authentication page
+- /dashboard - Main dashboard (protected)
+- /tasks - Task management board (protected)
+- /profile - User profile settings (protected)
+
+## Components
+- Header - Navigation and user controls
+- Footer - App information
+- ThemeSwitcher - Toggle between light and dark modes
+- LanguageSwitcher - Toggle between Uzbek and English
+- TaskBoard - Main task management interface
+- TaskCard - Individual task representation
+- TaskColumn - Column for grouping tasks by status

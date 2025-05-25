@@ -1,0 +1,454 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+
+type Language = "en" | "uz";
+
+interface LanguageProviderProps {
+  children: ReactNode;
+  defaultLanguage?: Language;
+}
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string) => string;
+}
+
+// Translation dictionaries
+const translations = {
+  en: {
+    // Auth
+    "login.title": "Sign In",
+    "login.username": "Username",
+    "login.email": "Email",
+    "login.password": "Password",
+    "login.submit": "Sign In",
+    "login.error": "Invalid username or password",
+    "login.forgotPassword": "Forgot password?",
+    "login.demoTitle": "Demo Account",
+    "login.demoDescription":
+      "Use these credentials to try out the application:",
+    logout: "Sign Out",
+
+    // Navigation
+    "nav.dashboard": "Dashboard",
+    "nav.tasks": "Tasks",
+    "nav.profile": "Profile",
+    "nav.home": "Home",
+    "nav.teams": "Teams",
+    "nav.users": "Users",
+    "nav.statistics": "Statistics",
+    "app.title": "Insider",
+
+    // Dashboard
+    "home.welcome": "Welcome to Insider",
+    "home.description": "Your task management platform",
+    "home.quickStats": "Quick Stats",
+    "home.totalTasks": "Total Tasks",
+    "home.completed": "Completed",
+    "home.recentActivity": "Recent Activity",
+    "home.taskCreated": "Task created",
+    "home.taskUpdated": "Task updated",
+    "home.taskCompleted": "Task completed",
+    "home.noActivity": "No recent activity",
+    "home.quickActions": "Quick Actions",
+    "home.viewAllTasks": "View All Tasks",
+    "home.viewProfile": "View Profile",
+    "home.boards": "Boards",
+    "home.manageTasks": "Manage your tasks",
+    "home.manageProfile": "Update your profile",
+    "home.recentTasks": "Recent Tasks",
+    "home.notifications": "Notifications",
+    "home.noNotifications": "No notifications",
+    "home.priority": "Priority",
+    "home.status": "Status",
+    "home.due": "Due",
+    "home.overdue": "Overdue",
+    "home.assignedTo": "Assigned to",
+    "home.inProgressTasks": "In Progress",
+    "home.completedTasks": "Completed",
+    "home.taskStats": "Task Statistics",
+
+    // Tasks
+    "tasks.title": "Task Board",
+    "tasks.add": "Add Task",
+    "tasks.todo": "To Do",
+    "tasks.inProgress": "In Progress",
+    "tasks.done": "Done",
+    "tasks.assigned": "Assigned",
+    "tasks.received": "Received",
+    "tasks.inProcess": "In Process",
+    "tasks.completed": "Completed",
+    "tasks.editTask": "Edit Task",
+    "tasks.addTask": "Create Task",
+    "tasks.description": "Description",
+    "tasks.status": "Status",
+    "tasks.priority": "Priority",
+    "tasks.priorityDefault": "Default",
+    "tasks.priorityHigh": "High",
+    "tasks.assignee": "Assignee",
+    "tasks.selectAssignee": "Select an assignee",
+    "tasks.loadingUsers": "Loading users...",
+    "tasks.dueDate": "Due Date",
+    "tasks.dueTime": "Due Time",
+    "tasks.saving": "Saving...",
+    "tasks.updateTask": "Update Task",
+    "tasks.createTask": "Create Task",
+    "tasks.titlePlaceholder": "Enter task title",
+    "tasks.descriptionPlaceholder": "Enter task description",
+    "tasks.noTasks": "No tasks found",
+
+    // Settings
+    "settings.theme": "Theme",
+    "settings.language": "Language",
+    "settings.light": "Light",
+    "settings.dark": "Dark",
+    "settings.system": "System",
+
+    // Profile
+    "profile.title": "Profile",
+    "profile.personal_info": "Personal Info",
+    "profile.personal_info_description": "Update your personal details",
+    "profile.security": "Security",
+    "profile.first_name": "First Name",
+    "profile.last_name": "Last Name",
+    "profile.first_name_placeholder": "Enter your first name",
+    "profile.last_name_placeholder": "Enter your last name",
+    "profile.position": "Position",
+    "profile.region": "Region",
+    "profile.position_placeholder": "Your position or title",
+    "profile.region_placeholder": "Your region",
+    "profile.save_changes": "Save Changes",
+    "profile.saving": "Saving...",
+    "profile.joined": "Joined",
+    "profile.actions": "Profile Actions",
+    "profile.actions_description": "Manage your profile security and session",
+    "profile.password": "Password",
+    "profile.secure": "Secure",
+    "profile.password_description": "Change your password to keep your account secure",
+    "profile.hide_password": "Hide",
+    "profile.change_password": "Change Password",
+    "profile.current_password": "Current Password",
+    "profile.new_password": "New Password",
+    "profile.confirm_password": "Confirm New Password",
+    "profile.changing_password": "Changing Password...",
+    "profile.logout": "Logout",
+    "profile.logout_description": "Securely log out from your account",
+    "profile.logout_warning": "When you log out, your session will be terminated on this device.",
+    "settings.title": "Preferences",
+    "settings.description": "Manage your app preferences",
+
+    // Teams & Users
+    "teams.title": "Teams",
+    "teams.teams": "Teams",
+    "teams.users": "Users",
+    "teams.create": "Create Team",
+    "teams.createTeam": "Create New Team",
+    "teams.teamName": "Team Name",
+    "teams.teamNamePlaceholder": "Enter team name",
+    "teams.teamDescription": "Description",
+    "teams.teamDescriptionPlaceholder": "Enter team description",
+    "teams.creating": "Creating...",
+    "teams.cancel": "Cancel",
+    "teams.createError": "Failed to create team. Please try again.",
+    "teams.view": "View",
+    "teams.owner": "Owner",
+    "teams.position": "Position",
+    "teams.admins": "Admins",
+    "teams.members": "Members",
+    "teams.created": "Created",
+    "teams.noTeams": "No teams found.",
+    "teams.noDescription": "No description available.",
+    "teams.searchPlaceholder": "Search teams...",
+    "teams.teamLead": "Team Lead",
+    "teams.teamDetails": "Team Details",
+    "teams.teamMembers": "Team Members",
+    "teams.teamAdmins": "Team Administrators",
+    "teams.addMember": "Add Member",
+    "teams.removeMember": "Remove Member",
+    "teams.addAdmin": "Add Admin",
+    "teams.removeAdmin": "Remove Admin",
+    "teams.editTeam": "Edit Team",
+    "teams.deleteTeam": "Delete Team",
+    "teams.confirmDelete": "Are you sure you want to delete this team?",
+    "teams.memberCount": "Members",
+    "teams.adminCount": "Admins",
+    "teams.joinTeam": "Join Team",
+    "teams.leaveTeam": "Leave Team",
+    "teams.confirmLeave": "Are you sure you want to leave this team?",
+    "teams.loading": "Loading team information...",
+    "teams.error": "Error loading team information.",
+    "teams.tryAgain": "Try Again",
+    "teams.backToTeams": "Back to Teams",
+    "teams.updateSuccess": "Team updated successfully.",
+    "teams.updateError": "Failed to update team.",
+    "teams.deleteSuccess": "Team deleted successfully.",
+    "teams.deleteError": "Failed to delete team.",
+    "teams.joinSuccess": "Successfully joined the team.",
+    "teams.joinError": "Failed to join team.",
+    "teams.leaveSuccess": "Successfully left the team.",
+    "teams.leaveError": "Failed to leave team.",
+    "teams.memberAdded": "Member added successfully.",
+    "teams.memberRemoved": "Member removed successfully.",
+    "teams.adminAdded": "Admin added successfully.",
+    "teams.adminRemoved": "Admin removed successfully.",
+    "teams.memberAddError": "Failed to add member.",
+    "teams.memberRemoveError": "Failed to remove member.",
+    "teams.adminAddError": "Failed to add admin.",
+    "teams.adminRemoveError": "Failed to remove admin.",
+    "users.title": "Users",
+    "users.searchPlaceholder": "Search users...",
+    "users.noUsers": "No users found.",
+    "users.position": "Position",
+    "users.region": "Region",
+    "users.joined": "Joined",
+    "users.district": "District"
+  },
+  uz: {
+    // Auth
+    "login.title": "Kirish",
+    "login.username": "Foydalanuvchi nomi",
+    "login.email": "Email",
+    "login.password": "Parol",
+    "login.submit": "Kirish",
+    "login.error": "Foydalanuvchi nomi yoki parol noto'g'ri",
+    "login.forgotPassword": "Parolni unutdingizmi?",
+    "login.demoTitle": "Demo Hisob",
+    "login.demoDescription":
+      "Ilovani sinab ko'rish uchun ushbu ma'lumotlardan foydalaning:",
+    logout: "Chiqish",
+
+    // Navigation
+    "nav.dashboard": "Boshqaruv paneli",
+    "nav.tasks": "Vazifalar",
+    "nav.profile": "Profil",
+    "nav.home": "Asosiy",
+    "nav.teams": "Jamoalar",
+    "nav.users": "Odamlar",
+    "nav.statistics": "Statistika",
+    "app.title": "Insider",
+
+    // Dashboard
+    "home.welcome": "Insider ga xush kelibsiz",
+    "home.description": "Sizning vazifa boshqaruv platformangiz",
+    "home.quickStats": "Tezkor statistika",
+    "home.totalTasks": "Jami vazifalar",
+    "home.completed": "Bajarilgan",
+    "home.recentActivity": "So'nggi faoliyat",
+    "home.taskCreated": "Vazifa yaratildi",
+    "home.taskUpdated": "Vazifa yangilandi",
+    "home.taskCompleted": "Vazifa bajarildi",
+    "home.noActivity": "So'nggi faoliyat yo'q",
+    "home.quickActions": "Tezkor harakatlar",
+    "home.viewAllTasks": "Barcha vazifalarni ko'rish",
+    "home.viewProfile": "Profilni ko'rish",
+    "home.boards": "Doskalar",
+    "home.manageTasks": "Vazifalarni boshqarish",
+    "home.manageProfile": "Profilni yangilash",
+    "home.recentTasks": "So'nggi vazifalar",
+    "home.notifications": "Bildirishnomalar",
+    "home.noNotifications": "Bildirishnomalar yo'q",
+    "home.priority": "Muhimlik",
+    "home.status": "Holat",
+    "home.due": "Muddat",
+    "home.overdue": "Muddati o'tgan",
+    "home.assignedTo": "Mas'ul",
+    "home.inProgressTasks": "Jarayonda",
+    "home.completedTasks": "Bajarilgan",
+    "home.taskStats": "Vazifalar statistikasi",
+
+    // Tasks
+    "tasks.title": "Vazifalar doskasi",
+    "tasks.add": "Vazifa qo'shish",
+    "tasks.todo": "Bajarish kerak",
+    "tasks.inProgress": "Jarayonda",
+    "tasks.done": "Bajarildi",
+    "tasks.assigned": "Tayinlangan",
+    "tasks.received": "Qabul qilingan",
+    "tasks.inProcess": "Jarayonda",
+    "tasks.completed": "Bajarilgan",
+    "tasks.editTask": "Vazifani tahrirlash",
+    "tasks.addTask": "Vazifa yaratish",
+    "tasks.description": "Tavsif",
+    "tasks.status": "Holat",
+    "tasks.priority": "Muhimlik",
+    "tasks.priorityDefault": "Standart",
+    "tasks.priorityHigh": "Yuqori",
+    "tasks.assignee": "Mas'ul",
+    "tasks.selectAssignee": "Mas'ulni tanlang",
+    "tasks.loadingUsers": "Foydalanuvchilar yuklanmoqda...",
+    "tasks.dueDate": "Muddat",
+    "tasks.dueTime": "Vaqt",
+    "tasks.saving": "Saqlanmoqda...",
+    "tasks.updateTask": "Vazifani yangilash",
+    "tasks.createTask": "Vazifani yaratish",
+    "tasks.titlePlaceholder": "Vazifa sarlavhasini kiriting",
+    "tasks.descriptionPlaceholder": "Vazifa tavsifini kiriting",
+    "tasks.noTasks": "Vazifalar topilmadi",
+
+    // Settings
+    "settings.theme": "Mavzu",
+    "settings.language": "Til",
+    "settings.light": "Yorug'",
+    "settings.dark": "Qorong'u",
+    "settings.system": "Tizim",
+
+    // Profile
+    "profile.title": "Profil",
+    "profile.personal_info": "Shaxsiy ma'lumotlar",
+    "profile.personal_info_description": "Shaxsiy ma'lumotlaringizni yangilang",
+    "profile.security": "Xavfsizlik",
+    "profile.first_name": "Ism",
+    "profile.last_name": "Familiya",
+    "profile.first_name_placeholder": "Ismingizni kiriting",
+    "profile.last_name_placeholder": "Familiyangizni kiriting",
+    "profile.position": "Lavozim",
+    "profile.region": "Hudud",
+    "profile.position_placeholder": "Lavozimingiz yoki unvoningiz",
+    "profile.region_placeholder": "Hududingiz",
+    "profile.save_changes": "O'zgarishlarni saqlash",
+    "profile.saving": "Saqlanmoqda...",
+    "profile.joined": "Qo'shilgan",
+    "profile.actions": "Profil harakatlari",
+    "profile.actions_description": "Profil xavfsizligi va sessiyasini boshqarish",
+    "profile.password": "Parol",
+    "profile.secure": "Xavfsiz",
+    "profile.password_description": "Hisobingizni xavfsiz saqlash uchun parolingizni o'zgartiring",
+    "profile.hide_password": "Yashirish",
+    "profile.change_password": "Parolni o'zgartirish",
+    "profile.current_password": "Joriy parol",
+    "profile.new_password": "Yangi parol",
+    "profile.confirm_password": "Yangi parolni tasdiqlang",
+    "profile.changing_password": "Parol o'zgartirilmoqda...",
+    "profile.logout": "Chiqish",
+    "profile.logout_description": "Hisobingizdan xavfsiz chiqish",
+    "profile.logout_warning": "Chiqish qilganingizda, ushbu qurilmadagi sessiyangiz yakunlanadi.",
+    "settings.title": "Sozlamalar",
+    "settings.description": "Ilova sozlamalarini boshqarish",
+
+    // Teams & Users
+    "teams.title": "Jamoalar",
+    "teams.teams": "Jamoalar",
+    "teams.users": "Foydalanuvchilar",
+    "teams.create": "Jamoa yaratish",
+    "teams.createTeam": "Yangi jamoa yaratish",
+    "teams.teamName": "Jamoa nomi",
+    "teams.teamNamePlaceholder": "Jamoa nomini kiriting",
+    "teams.teamDescription": "Tavsif",
+    "teams.teamDescriptionPlaceholder": "Jamoa tavsifini kiriting",
+    "teams.creating": "Yaratilmoqda...",
+    "teams.cancel": "Bekor qilish",
+    "teams.createError": "Jamoani yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+    "teams.view": "Ko'rish",
+    "teams.owner": "Rahbar",
+    "teams.position": "Lavozim",
+    "teams.admins": "Adminlar",
+    "teams.members": "A'zolar",
+    "teams.created": "Yaratilgan",
+    "teams.noTeams": "Jamoalar topilmadi.",
+    "teams.noDescription": "Tavsif mavjud emas.",
+    "teams.searchPlaceholder": "Jamoalarni qidirish...",
+    "teams.teamLead": "Jamoa rahbari",
+    "teams.teamDetails": "Jamoa tafsilotlari",
+    "teams.teamMembers": "Jamoa a'zolari",
+    "teams.teamAdmins": "Jamoa administratorlari",
+    "teams.addMember": "A'zo qo'shish",
+    "teams.removeMember": "A'zoni olib tashlash",
+    "teams.addAdmin": "Admin qo'shish",
+    "teams.removeAdmin": "Adminni olib tashlash",
+    "teams.editTeam": "Jamoani tahrirlash",
+    "teams.deleteTeam": "Jamoani o'chirish",
+    "teams.confirmDelete": "Haqiqatan ham bu jamoani o'chirishni xohlaysizmi?",
+    "teams.memberCount": "A'zolar",
+    "teams.adminCount": "Adminlar",
+    "teams.joinTeam": "Jamoaga qo'shilish",
+    "teams.leaveTeam": "Jamoani tark etish",
+    "teams.confirmLeave": "Haqiqatan ham bu jamoani tark etishni xohlaysizmi?",
+    "teams.loading": "Jamoa ma'lumotlari yuklanmoqda...",
+    "teams.error": "Jamoa ma'lumotlarini yuklashda xatolik yuz berdi.",
+    "teams.tryAgain": "Qayta urinib ko'ring",
+    "teams.backToTeams": "Jamoalarga qaytish",
+    "teams.updateSuccess": "Jamoa muvaffaqiyatli yangilandi.",
+    "teams.updateError": "Jamoani yangilashda xatolik yuz berdi.",
+    "teams.deleteSuccess": "Jamoa muvaffaqiyatli o'chirildi.",
+    "teams.deleteError": "Jamoani o'chirishda xatolik yuz berdi.",
+    "teams.joinSuccess": "Jamoaga muvaffaqiyatli qo'shildingiz.",
+    "teams.joinError": "Jamoaga qo'shilishda xatolik yuz berdi.",
+    "teams.leaveSuccess": "Jamoani muvaffaqiyatli tark etdingiz.",
+    "teams.leaveError": "Jamoani tark etishda xatolik yuz berdi.",
+    "teams.memberAdded": "A'zo muvaffaqiyatli qo'shildi.",
+    "teams.memberRemoved": "A'zo muvaffaqiyatli olib tashlandi.",
+    "teams.adminAdded": "Admin muvaffaqiyatli qo'shildi.",
+    "teams.adminRemoved": "Admin muvaffaqiyatli olib tashlandi.",
+    "teams.memberAddError": "A'zo qo'shishda xatolik yuz berdi.",
+    "teams.memberRemoveError": "A'zoni olib tashlashda xatolik yuz berdi.",
+    "teams.adminAddError": "Admin qo'shishda xatolik yuz berdi.",
+    "teams.adminRemoveError": "Adminni olib tashlashda xatolik yuz berdi.",
+    "users.title": "Foydalanuvchilar",
+    "users.searchPlaceholder": "Foydalanuvchilarni qidirish...",
+    "users.noUsers": "Foydalanuvchilar topilmadi.",
+    "users.position": "Lavozim",
+    "users.region": "Hudud",
+    "users.joined": "Qo'shilgan",
+    "users.district": "Tuman"
+  },
+};
+
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined
+);
+
+export function LanguageProvider({
+  children,
+  defaultLanguage = "en",
+}: LanguageProviderProps) {
+  const [language, setLanguage] = useState<Language>(defaultLanguage);
+
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("language") as Language | null;
+    if (savedLanguage && (savedLanguage === "en" || savedLanguage === "uz")) {
+      setLanguage(savedLanguage);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    localStorage.setItem("language", language);
+  }, [language]);
+
+  // Translation function
+  const t = (key: string): string => {
+    return (
+      translations[language][
+        key as keyof (typeof translations)[typeof language]
+      ] || key
+    );
+  };
+
+  const value = {
+    language,
+    setLanguage,
+    t,
+  };
+
+  return (
+    <LanguageContext.Provider value={value}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error("useLanguage must be used within a LanguageProvider");
+  }
+  return context;
+};
