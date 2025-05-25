@@ -37,8 +37,11 @@ export default function UserTasksWidget() {
       try {
         setLoading(true);
         const response = await ApiService.getUserTasks();
-        const data = response.data as UserTasksResponse;
-        setTasks(data.results.slice(0, 3)); // Only show the first 3 tasks
+        if (Array.isArray(response)) {
+          setTasks(response.slice(0, 3));
+        } else {
+          setTasks(response.data.results.slice(0, 3));
+        } // Only show the first 3 tasks
         setError(null);
       } catch (err) {
         console.error("Error fetching user tasks:", err);
