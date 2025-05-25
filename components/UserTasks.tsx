@@ -45,8 +45,11 @@ export default function UserTasks() {
       try {
         setLoading(true);
         const response = await ApiService.getUserTasks();
-        const data = response.data as UserTasksResponse;
-        setTasks(data.results);
+        if (Array.isArray(response)) {
+          setTasks(response);
+        } else {
+          setTasks(response.data.results);
+        }
         setError(null);
       } catch (err) {
         console.error("Error fetching user tasks:", err);
