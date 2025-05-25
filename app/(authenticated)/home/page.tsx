@@ -200,7 +200,7 @@ export default function HomePage() {
       ) : (
         <div className="flex flex-wrap gap-6">
           {/* Task Statistics */}
-          <Card className="w-1/3">
+          <Card className="w-full md:w-1/2 lg:w-1/3">
             <CardHeader className="pb-2">
               <CardTitle>{t("home.taskStats")}</CardTitle>
               <CardDescription>{t("home.quickStats")}</CardDescription>
