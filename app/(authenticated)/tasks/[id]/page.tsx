@@ -164,7 +164,7 @@ export default function TaskDetailPage() {
 
   const getPriorityLabel = (priority: number): string => {
     const priorityLabels = {
-      [TaskPriority.DEFAULT]: t("tasks.priorityDefault") || "DEFAULT",
+      [TaskPriority.MEDIUM]: t("tasks.priorityDefault") || "MEDIUM",
       [TaskPriority.HIGH]: t("tasks.priorityHigh") || "HIGH",
     };
     return priorityLabels[priority as keyof typeof priorityLabels] || "Unknown";
@@ -172,7 +172,7 @@ export default function TaskDetailPage() {
 
   const getPriorityColor = (priority: number): string => {
     const priorityColors = {
-      [TaskPriority.DEFAULT]:
+      [TaskPriority.MEDIUM]:
         "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
       [TaskPriority.HIGH]:
         "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
