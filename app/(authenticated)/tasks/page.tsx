@@ -4,37 +4,42 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import ApiService from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, X } from "lucide-react";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Loader2 } from "lucide-react";
 import { Task, User, Team, TaskStatus, TaskPriority } from "@/lib/types";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
-} from "@/components/ui/drawer";
+
+// Import our new components
+import { TaskColumn } from "@/components/tasks/TaskColumn";
+import { TaskDrawer } from "@/components/tasks/TaskDrawer";
+import { TaskDialog } from "@/components/tasks/TaskDialog";
 
 // Initial empty tasks array
 const initialTasks: Task[] = [];
 
 export default function TasksPage() {
   const { t } = useLanguage();
+
+  // Get proper translations with fallbacks for key labels
+  const nameLabel = t("tasks.name") === "tasks.name" ? "Name" : t("tasks.name");
+  const teamLabel = t("tasks.team") === "tasks.team" ? "Team" : t("tasks.team");
+  const assignedUsersLabel =
+    t("tasks.assignedUsers") === "tasks.assignedUsers"
+      ? "Assigned Users"
+      : t("tasks.assignedUsers");
+  const addTaskLabel =
+    t("tasks.addTask") === "tasks.addTask" ? "Add Task" : t("tasks.addTask");
+  const tasksTitle =
+    t("tasks.title") === "tasks.title" ? "Tasks" : t("tasks.title");
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,9 +61,10 @@ export default function TasksPage() {
     name: string;
     description: string;
     status: number;
+    is_checked: boolean;
     priority: number;
     team: number | null;
-    assigned_users: number[];
+    assigned_users: string[];
     deadline: string;
   }
 
@@ -66,7 +72,8 @@ export default function TasksPage() {
     name: "",
     description: "",
     status: TaskStatus.ASSIGNED,
-    priority: TaskPriority.DEFAULT,
+    is_checked: false,
+    priority: TaskPriority.MEDIUM,
     team: null,
     assigned_users: [],
     deadline: "",
@@ -74,6 +81,9 @@ export default function TasksPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingTask, setSavingTask] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch tasks from API
   const fetchTasks = async () => {
@@ -91,7 +101,9 @@ export default function TasksPage() {
       setError(null);
     } catch (err) {
       console.error("Error fetching tasks:", err);
-      setError("Failed to load tasks. Please try again later.");
+      setError(
+        t("tasks.loadError") || "Failed to load tasks. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
@@ -162,7 +174,7 @@ export default function TasksPage() {
         setFormData((prev) => ({
           ...prev,
           assigned_users: prev.assigned_users.filter((userId) =>
-            team.members.some((member) => Number(member.id) === userId)
+            team.members.some((member) => member.id.toString() === userId)
           ),
         }));
       }
@@ -171,6 +183,27 @@ export default function TasksPage() {
     }
   }, [formData.team, teams]);
 
+  // Filter tasks by status
+  const assignedTasks = tasks.filter(
+    (task) => task.status === TaskStatus.ASSIGNED
+  );
+  const receivedTasks = tasks.filter(
+    (task) => task.status === TaskStatus.RECEIVED
+  );
+  const inProcessTasks = tasks.filter(
+    (task) => task.status === TaskStatus.IN_PROCESS
+  );
+  const completedTasks = tasks.filter(
+    (task) => task.status === TaskStatus.COMPLETED
+  );
+
+  // Filter users based on selected team
+  const filteredUsers = selectedTeam
+    ? users.filter((user) =>
+        selectedTeam.members.some((member) => member.id === user.id)
+      )
+    : users;
+
   // Handle opening task form for creating a new task
   const handleAddTask = () => {
     setSelectedTask(null);
@@ -178,12 +211,14 @@ export default function TasksPage() {
       name: "",
       description: "",
       status: TaskStatus.ASSIGNED,
-      priority: TaskPriority.DEFAULT,
+      is_checked: false,
+      priority: TaskPriority.MEDIUM,
       team: null,
       assigned_users: [],
       deadline: "",
     });
 
+    // Open drawer on mobile, dialog on desktop
     if (isMobile) {
       setIsDrawerOpen(true);
     } else {
@@ -198,12 +233,18 @@ export default function TasksPage() {
       name: task.name,
       description: task.description,
       status: task.status,
+      is_checked: task.is_checked || false,
       priority: task.priority,
       team: task.team,
-      assigned_users: task.assigned_users.map((user) => Number(user.id)),
+      assigned_users: task.assigned_users
+        ? task.assigned_users
+            .filter((user) => user && user.id) // Filter out undefined users or users without id
+            .map((user) => user.id.toString())
+        : [],
       deadline: task.deadline || "",
     });
 
+    // Open drawer on mobile, dialog on desktop
     if (isMobile) {
       setIsDrawerOpen(true);
     } else {
@@ -218,55 +259,47 @@ export default function TasksPage() {
     >
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      let newValue: string | number | number[] | null = value;
-
-      if (name === "team") {
-        newValue = value ? Number(value) : null;
-      } else if (name === "priority") {
-        newValue = Number(value);
-      } else if (name === "assigned_users") {
-        newValue = Array.isArray(value) ? value : (value ? [Number(value)] : []);
-      }
-
-      return {
-        ...prev,
-        [name]: newValue,
-      };
+    setFormData({
+      ...formData,
+      [name]: value,
     });
   };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingTask(true);
+    if (!formData.name.trim()) {
+      // Show validation error
+      return;
+    }
 
     try {
+      setSavingTask(true);
+
+      // Format task data for API
       const taskData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         status: TaskStatus.ASSIGNED, // New tasks always start as assigned
+        is_checked: false,
         priority: Number(formData.priority),
         team: formData.team ? Number(formData.team) : null,
-        assigned_users: formData.assigned_users.map((id) => Number(id)),
+        assigned_users: formData.assigned_users,
         deadline: formData.deadline || null,
       };
 
-      // Validate required fields
-      if (!taskData.name) {
-        throw new Error("Task name is required");
-      }
-
       if (selectedTask) {
+        // Update existing task
         await ApiService.updateTask(selectedTask.id.toString(), taskData);
       } else {
+        // Create new task
         await ApiService.createTask(taskData);
       }
 
       handleTaskSaved();
     } catch (err) {
       console.error("Error saving task:", err);
-      setError(err instanceof Error ? err.message : "Failed to save task");
+      // Show error notification
     } finally {
       setSavingTask(false);
     }
@@ -280,22 +313,44 @@ export default function TasksPage() {
 
   // Handle task save/update
   const handleTaskSaved = () => {
+    closeTaskForm();
     fetchTasks();
   };
 
-  // Filter tasks by status according to backend model
-  const assignedTasks = tasks.filter(
-    (task) => task.status === TaskStatus.ASSIGNED
-  );
-  const receivedTasks = tasks.filter(
-    (task) => task.status === TaskStatus.RECEIVED
-  );
-  const inProcessTasks = tasks.filter(
-    (task) => task.status === TaskStatus.IN_PROCESS
-  );
-  const completedTasks = tasks.filter(
-    (task) => task.status === TaskStatus.COMPLETED
-  );
+  // Handle task deletion
+  const handleDeleteTask = (task: Task, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation(); // Prevent opening the edit form when clicking delete
+    }
+    setTaskToDelete(task);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm and execute task deletion
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      setIsDeleting(true);
+
+      // Call API to delete the task
+      await ApiService.deleteTask(taskToDelete.id.toString());
+
+      // Update UI after successful deletion
+      setTasks((prevTasks) =>
+        prevTasks.filter((task) => task.id !== taskToDelete.id)
+      );
+
+      // Close the confirmation dialog
+      setIsDeleteDialogOpen(false);
+      setTaskToDelete(null);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      // You could set an error state here to show to the user
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Handle drag start
   const handleDragStart = (task: Task) => {
@@ -309,794 +364,266 @@ export default function TasksPage() {
 
   // Handle drop
   const handleDrop = async (status: number) => {
-    if (draggedTask) {
-      try {
-        // Optimistically update UI
-        const updatedTasks = tasks.map((task) =>
-          task.id === draggedTask.id ? { ...task, status } : task
-        );
-        setTasks(updatedTasks);
+    if (!draggedTask || draggedTask.status === status) return;
 
-        // Update only the status field using PATCH request
-        await ApiService.updateTask(draggedTask.id.toString(), {
-          status,
-        });
-      } catch (err) {
-        console.error("Error updating task status:", err);
-        // Revert to original state if update fails
-        const originalTasks = await ApiService.getTasks();
-        // Handle both possible return types
-        if (Array.isArray(originalTasks)) {
-          setTasks(originalTasks);
-        } else {
-          setTasks(originalTasks.data.results);
-        }
-      } finally {
-        setDraggedTask(null);
-      }
+    try {
+      // Update task status in UI first for immediate feedback
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === draggedTask.id ? { ...task, status } : task
+        )
+      );
+
+      // Update task status in API
+      await ApiService.updateTask(draggedTask.id.toString(), {
+        status,
+      });
+
+      // Refetch tasks to ensure we have the latest data
+      fetchTasks();
+    } catch (err) {
+      console.error("Error updating task status:", err);
+      // Revert UI change on error
+      fetchTasks();
+    } finally {
+      setDraggedTask(null);
     }
   };
 
-  // Task card component
-  const TaskCard = ({ task }: { task: Task }) => {
-    const priorityColors = {
-      1: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-      2: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-      3: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-    };
-
-    const priorityLabels = {
-      1: "Low",
-      2: "Medium",
-      3: "High",
-    };
-
-    const statusLabels = {
-      0: "To Do",
-      1: "In Progress",
-      2: "Done",
-    };
-
-    // Check if task deadline is overdue
-    const deadline = new Date(task.deadline);
-    const isOverdue = new Date() > deadline && task.status !== 2;
-
-    return (
-      <div
-        draggable
-        onDragStart={() => handleDragStart(task)}
-        className="bg-card border border-border rounded-md p-4 mb-3 shadow-sm cursor-move hover:shadow-md transition-shadow"
-        onClick={() => (window.location.href = `/tasks/${task.id}`)}
-      >
-        <h3 className="font-medium mb-2">{task.name}</h3>
-        {task.description && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-            {task.description}
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-2 mb-3">
-          <span
-            className={`text-xs px-2 py-1 rounded-full ${
-              priorityColors[task.priority as 1 | 2 | 3]
-            }`}
-          >
-            {priorityLabels[task.priority as 1 | 2 | 3]}
-          </span>
-
-          <span
-            className={`text-xs px-2 py-1 rounded-full ${
-              isOverdue
-                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                : "bg-muted"
-            }`}
-          >
-            {isOverdue ? "Overdue" : "Due"}:{" "}
-            {new Date(task.deadline).toLocaleDateString()}
-          </span>
-        </div>
-
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-xs text-muted-foreground">
-            {statusLabels[task.status as 0 | 1 | 2]}
-          </span>
-
-          {task.assigned_users && task.assigned_users.length > 0 && (
-            <div className="flex -space-x-2">
-              {task.assigned_users.slice(0, 3).map((user, index) => (
-                <div
-                  key={index}
-                  className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium"
-                  title={`${user.first_name || ""} ${user.last_name || ""}`}
-                >
-                  {user.first_name?.charAt(0) || ""}
-                  {user.last_name?.charAt(0) || ""}
-                </div>
-              ))}
-              {task.assigned_users.length > 3 && (
-                <div className="size-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xs font-medium">
-                  +{task.assigned_users.length - 3}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Column component
-  const TaskColumn = ({
-    title,
-    tasks,
-    status,
-  }: {
-    title: string;
-    tasks: Task[];
-    status: number;
-  }) => {
-    return (
-      <div
-        className="bg-muted/50 rounded-lg p-4 min-h-[500px] w-full"
-        onDragOver={handleDragOver}
-        onDrop={() => handleDrop(status)}
-      >
-        <h2 className="font-semibold mb-4 flex items-center justify-between">
-          <span>{title}</span>
-          <span className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-full">
-            {tasks.length}
-          </span>
-        </h2>
-
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const filteredTeams = teams.filter(
-    (team) =>
-      team.name.toLowerCase().includes(teamSearch.toLowerCase()) ||
-      team.description.toLowerCase().includes(teamSearch.toLowerCase())
-  );
-
-  const filteredUsers = users.filter(
-    (user) =>
-      `${user.first_name} ${user.last_name}`
-        .toLowerCase()
-        .includes(userSearch.toLowerCase()) ||
-      user.username.toLowerCase().includes(userSearch.toLowerCase())
-  );
-
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">{t("tasks.title")}</h1>
-        <Button onClick={handleAddTask}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("tasks.add")}
+    <div className="container mx-auto py-6 px-4 md:px-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">{tasksTitle}</h1>
+          <p className="text-muted-foreground text-sm">
+            {t("tasks.description") === "tasks.description"
+              ? "Manage and organize your tasks"
+              : t("tasks.description")}
+          </p>
+        </div>
+        <Button
+          onClick={handleAddTask}
+          className="flex items-center gap-2 self-start"
+          size="default"
+        >
+          <Plus className="w-4 h-4" />
+          <span>{addTaskLabel}</span>
         </Button>
+      </div>
 
-        {/* Mobile Drawer */}
-        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-          <DrawerContent>
-            <DrawerHeader className="border-b border-border bg-background sticky top-0 z-10">
-              <div className="flex items-center justify-between">
-                <DrawerTitle className="text-xl font-bold">
-                  {selectedTask ? t("tasks.editTask") : t("tasks.addTask")}
-                </DrawerTitle>
-                <DrawerClose asChild>
-                  <Button variant="ghost" size="icon">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </DrawerClose>
-              </div>
-            </DrawerHeader>
+      <div>
+        {/* Task Drawer (Mobile) */}
+        <TaskDrawer
+          isOpen={isDrawerOpen}
+          setIsOpen={setIsDrawerOpen}
+          formData={formData}
+          setFormData={setFormData}
+          handleChange={handleChange}
+          handleSubmit={handleSubmit}
+          selectedTask={selectedTask}
+          teams={teams}
+          users={users}
+          loadingTeams={loadingTeams}
+          loadingUsers={loadingUsers}
+          teamSearch={teamSearch}
+          userSearch={userSearch}
+          setTeamSearch={setTeamSearch}
+          setUserSearch={setUserSearch}
+          selectedTeam={selectedTeam}
+          savingTask={savingTask}
+        />
 
-            <div className="px-4 py-4 overflow-y-auto">
-              <form
-                id="task-form-mobile"
-                onSubmit={handleSubmit}
-                className="space-y-4"
-              >
-                {/* Title */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="name-mobile"
-                    className="block text-sm font-medium"
-                  >
-                    {t("tasks.name")}
-                  </label>
-                  <Input
-                    id="name-mobile"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder={t("tasks.namePlaceholder") || "Task name"}
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="description-mobile"
-                    className="block text-sm font-medium"
-                  >
-                    {t("tasks.description")}
-                  </label>
-                  <textarea
-                    id="description-mobile"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder={
-                      t("tasks.descriptionPlaceholder") || "Task description"
-                    }
-                    className="w-full h-32 px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                {/* Team */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="team-mobile"
-                    className="block text-sm font-medium"
-                  >
-                    {t("tasks.team")}
-                  </label>
-                  <Select
-                    name="team"
-                    value={formData.team?.toString() || ""}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        team: value ? Number(value) : null,
-                      }))
-                    }
-                  >
-                    <SelectTrigger id="team-mobile">
-                      <SelectValue
-                        placeholder={t("tasks.selectTeam") || "Select team"}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="p-2">
-                        <input
-                          type="text"
-                          placeholder="Search teams..."
-                          value={teamSearch}
-                          onChange={(e) => setTeamSearch(e.target.value)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                      <SelectItem value="">No team</SelectItem>
-                      {loadingTeams ? (
-                        <div className="p-2 text-center">
-                          <div className="animate-spin h-4 w-4 mx-auto border-b-2 border-primary rounded-full"></div>
-                        </div>
-                      ) : (
-                        filteredTeams.map((team) => (
-                          <SelectItem key={team.id} value={team.id.toString()}>
-                            {team.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedTeam && (
-                  <div className="rounded-md bg-blue-50 p-4">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg
-                          className="h-5 w-5 text-blue-400"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-blue-700">
-                          Only team members can be assigned to this task
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Assigned Users */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="assigned-users-mobile"
-                    className="block text-sm font-medium"
-                  >
-                    {t("tasks.assignedUsers")}
-                  </label>
-                  <Select
-                    name="assigned_users"
-                    value={
-                      formData.assigned_users.length > 0
-                        ? formData.assigned_users[0].toString()
-                        : ""
-                    }
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        assigned_users: value ? [Number(value)] : [],
-                      }))
-                    }
-                  >
-                    <SelectTrigger id="assigned-users-mobile">
-                      <SelectValue
-                        placeholder={
-                          t("tasks.selectAssignedUsers") || "Select users"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="p-2">
-                        <input
-                          type="text"
-                          placeholder="Search users..."
-                          value={userSearch}
-                          onChange={(e) => setUserSearch(e.target.value)}
-                          className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                      {loadingUsers ? (
-                        <div className="p-2 text-center">
-                          <div className="animate-spin h-4 w-4 mx-auto border-b-2 border-primary rounded-full"></div>
-                        </div>
-                      ) : (
-                        filteredUsers
-                          .filter(
-                            (user) =>
-                              `${user.first_name} ${user.last_name}`
-                                .toLowerCase()
-                                .includes(userSearch.toLowerCase()) ||
-                              user.username
-                                .toLowerCase()
-                                .includes(userSearch.toLowerCase())
-                          )
-                          .map((user) => (
-                            <SelectItem
-                              key={user.id}
-                              value={user.id.toString()}
-                            >
-                              {`${user.first_name} ${user.last_name}`}
-                            </SelectItem>
-                          ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Priority */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="priority-mobile"
-                    className="block text-sm font-medium"
-                  >
-                    {t("tasks.priority")}
-                  </label>
-                  <Select
-                    name="priority"
-                    value={formData.priority.toString()}
-                    onValueChange={(value) =>
-                      handleChange({
-                        target: { name: "priority", value: parseInt(value) },
-                      } as any)
-                    }
-                  >
-                    <SelectTrigger id="priority-mobile">
-                      <SelectValue
-                        placeholder={
-                          t("tasks.selectPriority") || "Select priority"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={TaskPriority.DEFAULT.toString()}>
-                        {t("tasks.priorityDefault") || "Default"}
-                      </SelectItem>
-                      <SelectItem value={TaskPriority.HIGH.toString()}>
-                        {t("tasks.priorityHigh") || "High"}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Deadline */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="deadline-mobile"
-                    className="block text-sm font-medium"
-                  >
-                    {t("tasks.deadline")}
-                  </label>
-                  <Input
-                    id="deadline-mobile"
-                    name="deadline"
-                    type="datetime-local"
-                    value={formData.deadline || ""}
-                    onChange={handleChange}
-                  />
-                </div>
-              </form>
-            </div>
-
-            <DrawerFooter className="border-t border-border">
-              <Button
-                type="submit"
-                form="task-form-mobile"
-                disabled={savingTask}
-                className="w-full"
-              >
-                {savingTask ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    {t("tasks.saving")}
-                  </span>
-                ) : selectedTask ? (
-                  t("tasks.updateTask")
-                ) : (
-                  t("tasks.createTask")
-                )}
-              </Button>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-
-        {/* Desktop Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b">
-              <DialogTitle className="text-xl font-bold">
-                {selectedTask ? t("tasks.editTask") : t("tasks.addTask")}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="px-6 py-4 overflow-y-auto max-h-[70vh]">
-              <form
-                id="task-form-desktop"
-                onSubmit={handleSubmit}
-                className="space-y-4"
-              >
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="name-desktop"
-                      className="block text-sm font-medium"
-                    >
-                      {t("tasks.name")}
-                    </label>
-                    <Input
-                      id="name-desktop"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder={t("tasks.namePlaceholder") || "Task name"}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="description-desktop"
-                      className="block text-sm font-medium"
-                    >
-                      {t("tasks.description")}
-                    </label>
-                    <textarea
-                      id="description-desktop"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      placeholder={
-                        t("tasks.descriptionPlaceholder") || "Task description"
-                      }
-                      className="w-full h-32 px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="team-desktop"
-                      className="block text-sm font-medium"
-                    >
-                      {t("tasks.team")}
-                    </label>
-                    <Select
-                      name="team"
-                      value={formData.team?.toString() || "none"}
-                      onValueChange={(value) =>
-                        handleChange({
-                          target: {
-                            name: "team",
-                            value: value === "none" ? null : value,
-                          },
-                        } as any)
-                      }
-                    >
-                      <SelectTrigger id="team-desktop">
-                        <SelectValue
-                          placeholder={t("tasks.selectTeam") || "Select team"}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-2">
-                          <input
-                            type="text"
-                            placeholder="Search teams..."
-                            value={teamSearch}
-                            onChange={(e) => setTeamSearch(e.target.value)}
-                            className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                        <SelectItem value="none">No team</SelectItem>
-                        {loadingTeams ? (
-                          <div className="p-2 text-center">
-                            <div className="animate-spin h-4 w-4 mx-auto border-b-2 border-primary rounded-full"></div>
-                          </div>
-                        ) : (
-                          filteredTeams.map((team) => (
-                            <SelectItem
-                              key={team.id}
-                              value={team.id.toString()}
-                            >
-                              {team.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {selectedTeam && (
-                    <div className="rounded-md bg-blue-50 p-4">
-                      <div className="flex">
-                        <div className="flex-shrink-0">
-                          <svg
-                            className="h-5 w-5 text-blue-400"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm text-blue-700">
-                            Only team members can be assigned to this task
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="assigned-users-desktop"
-                      className="block text-sm font-medium"
-                    >
-                      {t("tasks.assignedUsers")}
-                    </label>
-                    <Select
-                      name="assigned_users"
-                      value={formData.assigned_users[0]?.toString() || ""}
-                      onValueChange={(value) =>
-                        handleChange({
-                          target: {
-                            name: "assigned_users",
-                            value: value ? [Number(value)] : [],
-                          },
-                        } as any)
-                      }
-                    >
-                      <SelectTrigger id="assigned-users-desktop">
-                        <SelectValue
-                          placeholder={
-                            t("tasks.selectAssignedUsers") || "Select users"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="p-2">
-                          <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={userSearch}
-                            onChange={(e) => setUserSearch(e.target.value)}
-                            className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                        {loadingUsers ? (
-                          <div className="p-2 text-center">
-                            <div className="animate-spin h-4 w-4 mx-auto border-b-2 border-primary rounded-full"></div>
-                          </div>
-                        ) : (
-                          filteredUsers
-                            .filter(
-                              (user) =>
-                                `${user.first_name} ${user.last_name}`
-                                  .toLowerCase()
-                                  .includes(userSearch.toLowerCase()) ||
-                                user.username
-                                  .toLowerCase()
-                                  .includes(userSearch.toLowerCase())
-                            )
-                            .map((user) => (
-                              <SelectItem
-                                key={user.id}
-                                value={user.id.toString()}
-                              >
-                                {`${user.first_name} ${user.last_name}`}
-                              </SelectItem>
-                            ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="priority-desktop"
-                      className="block text-sm font-medium"
-                    >
-                      {t("tasks.priority")}
-                    </label>
-                    <Select
-                      name="priority"
-                      value={formData.priority.toString()}
-                      onValueChange={(value) =>
-                        handleChange({
-                          target: { name: "priority", value: parseInt(value) },
-                        } as any)
-                      }
-                    >
-                      <SelectTrigger id="priority-desktop">
-                        <SelectValue
-                          placeholder={
-                            t("tasks.selectPriority") || "Select priority"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={TaskPriority.DEFAULT.toString()}>
-                          {t("tasks.priorityDefault") || "Default"}
-                        </SelectItem>
-                        <SelectItem value={TaskPriority.HIGH.toString()}>
-                          {t("tasks.priorityHigh") || "High"}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="deadline-desktop"
-                      className="block text-sm font-medium"
-                    >
-                      {t("tasks.deadline")}
-                    </label>
-                    <Input
-                      id="deadline-desktop"
-                      name="deadline"
-                      type="datetime-local"
-                      value={formData.deadline || ""}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            {/* Form Actions - Fixed at bottom */}
-            <div className="px-6 py-4 border-t bg-muted/30">
-              <div className="flex flex-row gap-2">
-                <Button
-                  type="submit"
-                  form="task-form-desktop"
-                  disabled={savingTask}
-                  className="flex-1"
-                >
-                  {savingTask ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      {t("tasks.saving")}
-                    </span>
-                  ) : selectedTask ? (
-                    t("tasks.updateTask")
-                  ) : (
-                    t("tasks.createTask")
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Task Dialog (Desktop) */}
+        <TaskDialog
+          isOpen={isDialogOpen}
+          setIsOpen={setIsDialogOpen}
+          formData={formData}
+          setFormData={setFormData}
+          handleChange={handleChange}
+          handleSubmit={handleSubmit}
+          selectedTask={selectedTask}
+          teams={teams}
+          users={users}
+          loadingTeams={loadingTeams}
+          loadingUsers={loadingUsers}
+          teamSearch={teamSearch}
+          userSearch={userSearch}
+          setTeamSearch={setTeamSearch}
+          setUserSearch={setUserSearch}
+          selectedTeam={selectedTeam}
+          savingTask={savingTask}
+        />
       </div>
 
       {/* Loading and error states */}
       {loading && (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="flex flex-col justify-center items-center h-64 gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground text-sm font-medium">
+            {t("tasks.loading") === "tasks.loading"
+              ? "Loading tasks..."
+              : t("tasks.loading")}
+          </p>
         </div>
       )}
 
       {error && (
-        <div className="bg-destructive/15 text-destructive p-4 rounded-md mb-6">
-          {error}
+        <div className="bg-destructive/15 text-destructive p-4 rounded-md mb-6 border border-destructive/30 flex items-start gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mt-0.5"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div>
+            <h4 className="font-medium">
+              {t("tasks.errorTitle") === "tasks.errorTitle"
+                ? "Error Loading Tasks"
+                : t("tasks.errorTitle")}
+            </h4>
+            <p className="text-sm">{error}</p>
+          </div>
         </div>
       )}
 
-      {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <TaskColumn
-            title={t("tasks.assigned") || "ASSIGNED"}
-            tasks={assignedTasks}
-            status={TaskStatus.ASSIGNED}
-          />
-          <TaskColumn
-            title={t("tasks.received") || "RECEIVED"}
-            tasks={receivedTasks}
-            status={TaskStatus.RECEIVED}
-          />
-          <TaskColumn
-            title={t("tasks.inProcess") || "IN PROCESS"}
-            tasks={inProcessTasks}
-            status={TaskStatus.IN_PROCESS}
-          />
-          <TaskColumn
-            title={t("tasks.completed") || "COMPLETED"}
-            tasks={completedTasks}
-            status={TaskStatus.COMPLETED}
-          />
+      {!loading && !error && tasks.length === 0 ? (
+        <div className="bg-muted/50 rounded-lg p-10 text-center">
+          <div className="flex justify-center mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-muted-foreground"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="9" x2="15" y2="9" />
+              <line x1="9" y1="12" x2="15" y2="12" />
+              <line x1="9" y1="15" x2="13" y2="15" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium mb-2">
+            {t("tasks.noTasks") === "tasks.noTasks"
+              ? "No Tasks Yet"
+              : t("tasks.noTasks")}
+          </h3>
+          <p className="text-muted-foreground mb-6">
+            {t("tasks.createFirst") === "tasks.createFirst"
+              ? "Create your first task to get started"
+              : t("tasks.createFirst")}
+          </p>
+          <Button onClick={handleAddTask} className="mx-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            {addTaskLabel}
+          </Button>
         </div>
+      ) : (
+        !loading &&
+        !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <TaskColumn
+              title={t("tasks.assigned") || "ASSIGNED"}
+              tasks={assignedTasks}
+              status={TaskStatus.ASSIGNED}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            />
+            <TaskColumn
+              title={t("tasks.received") || "RECEIVED"}
+              tasks={receivedTasks}
+              status={TaskStatus.RECEIVED}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            />
+            <TaskColumn
+              title={t("tasks.inProcess") || "IN PROCESS"}
+              tasks={inProcessTasks}
+              status={TaskStatus.IN_PROCESS}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            />
+            <TaskColumn
+              title={t("tasks.completed") || "COMPLETED"}
+              tasks={completedTasks}
+              status={TaskStatus.COMPLETED}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            />
+          </div>
+        )
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("tasks.deleteConfirmTitle") === "tasks.deleteConfirmTitle"
+                ? "Delete Task"
+                : t("tasks.deleteConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("tasks.deleteConfirmMessage") === "tasks.deleteConfirmMessage"
+                ? "Are you sure you want to delete this task? This action cannot be undone."
+                : t("tasks.deleteConfirmMessage")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              {t("common.cancel") === "common.cancel"
+                ? "Cancel"
+                : t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteTask}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("tasks.deleting") === "tasks.deleting"
+                    ? "Deleting..."
+                    : t("tasks.deleting")}
+                </>
+              ) : t("tasks.confirmDelete") === "tasks.confirmDelete" ? (
+                "Delete"
+              ) : (
+                t("tasks.confirmDelete")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

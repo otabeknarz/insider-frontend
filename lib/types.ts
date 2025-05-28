@@ -64,13 +64,13 @@ export interface Team {
 
 // Status and priority mappings based on backend model
 export const TaskStatus = {
-  ASSIGNED: 1,
-  RECEIVED: 2,
-  IN_PROCESS: 3,
-  COMPLETED: 4,
+  ASSIGNED: 1,   // "ASSIGNED"
+  RECEIVED: 2,   // "RECEIVED"
+  IN_PROCESS: 3, // "IN_PROCESS"
+  COMPLETED: 4,  // "COMPLETED"
 };
 
 export const TaskPriority = {
-  DEFAULT: 1,
-  HIGH: 2,
+  MEDIUM: 1, // "DEFAULT"
+  HIGH: 2,   // "HIGH"
 };

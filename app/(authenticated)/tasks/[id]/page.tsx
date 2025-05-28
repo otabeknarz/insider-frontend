@@ -230,7 +230,7 @@ export default function TaskDetailPage() {
             {error || "Task not found"}
           </h2>
           <Link href="/tasks">
-            <Button>Back to Tasks</Button>
+            <Button>{t("tasks.backToTasks") || "Back to Tasks"}</Button>
           </Link>
         </div>
       </div>
@@ -266,9 +266,11 @@ export default function TaskDetailPage() {
         className="w-full"
       >
         <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="details">Task Details</TabsTrigger>
+          <TabsTrigger value="details">
+            {t("tasks.taskDetails") || "Task Details"}
+          </TabsTrigger>
           <TabsTrigger value="chat">
-            Chat ({task?.comments?.length || 0})
+            {t("tasks.comments") || "Chat"} ({task?.comments?.length || 0})
           </TabsTrigger>
         </TabsList>
 
@@ -277,14 +279,16 @@ export default function TaskDetailPage() {
             <div className="lg:col-span-3">
               <Card>
                 <CardHeader>
-                  <CardTitle>Task Information</CardTitle>
+                  <CardTitle>
+                    {t("tasks.taskInformation") || "Task Information"}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <div className="space-y-4">
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Status
+                          {t("tasks.status") || "Status"}
                         </h3>
                         <Badge
                           variant="outline"
@@ -296,7 +300,7 @@ export default function TaskDetailPage() {
 
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Priority
+                          {t("tasks.priority") || "Priority"}
                         </h3>
                         <Badge
                           variant="outline"
@@ -308,7 +312,7 @@ export default function TaskDetailPage() {
 
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Deadline
+                          {t("tasks.deadline") || "Deadline"}
                         </h3>
                         <p>{formatDate(task.deadline)}</p>
                       </div>
@@ -317,7 +321,7 @@ export default function TaskDetailPage() {
                     <div className="space-y-4">
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Created By
+                          {t("tasks.createdBy") || "Created By"}
                         </h3>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
@@ -331,14 +335,14 @@ export default function TaskDetailPage() {
 
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Created At
+                          {t("tasks.createdAt") || "Created At"}
                         </h3>
                         <p>{formatDate(task.created_at)}</p>
                       </div>
 
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Last Updated
+                          {t("tasks.lastUpdated") || "Last Updated"}
                         </h3>
                         <p>{formatDate(task.updated_at)}</p>
                       </div>
@@ -347,7 +351,7 @@ export default function TaskDetailPage() {
                     <div className="space-y-4">
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                          Assigned To
+                          {t("tasks.assignedTo") || "Assigned To"}
                         </h3>
                         <div className="flex flex-wrap gap-2">
                           {task.assigned_users.length > 0 ? (
@@ -366,7 +370,8 @@ export default function TaskDetailPage() {
                             ))
                           ) : (
                             <p className="text-muted-foreground">
-                              No users assigned
+                              {t("tasks.noUsersAssigned") ||
+                                "No users assigned"}
                             </p>
                           )}
                         </div>
@@ -375,10 +380,12 @@ export default function TaskDetailPage() {
                       {task.description && (
                         <div>
                           <h3 className="text-sm font-medium text-muted-foreground mb-1">
-                            Description
+                            {t("tasks.description") || "Description"}
                           </h3>
                           <p className="text-sm">
-                            {task.description || "No description provided."}
+                            {task.description ||
+                              t("tasks.noDescriptionProvided") ||
+                              "No description provided."}
                           </p>
                         </div>
                       )}
@@ -395,10 +402,12 @@ export default function TaskDetailPage() {
             <Card className="flex-1 flex flex-col overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Task Chat</CardTitle>
+                  <CardTitle>{t("tasks.taskChat") || "Task Chat"}</CardTitle>
                   <Badge variant="outline" className="ml-2">
                     {task.comments.length}{" "}
-                    {task.comments.length === 1 ? "message" : "messages"}
+                    {task.comments.length === 1
+                      ? t("tasks.message") || "message"
+                      : t("tasks.messages") || "messages"}
                   </Badge>
                 </div>
                 <Separator className="mt-4" />
@@ -411,7 +420,8 @@ export default function TaskDetailPage() {
                 >
                   {task?.comments && task.comments.length > 0 ? (
                     task.comments.map((comment) => {
-                      const isCurrentUser = comment.user === Number(currentUser?.id);
+                      const isCurrentUser =
+                        comment.user === Number(currentUser?.id);
                       return (
                         <div
                           key={comment.id}
@@ -472,7 +482,8 @@ export default function TaskDetailPage() {
                     })
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
-                      No messages yet. Start the conversation!
+                      {t("tasks.noMessages") ||
+                        "No messages yet. Start the conversation!"}
                     </div>
                   )}
                 </div>
@@ -485,7 +496,7 @@ export default function TaskDetailPage() {
                 <Input
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Type your message..."
+                  placeholder={t("tasks.typeMessage") || "Type your message..."}
                   disabled={submitting}
                   className="flex-1"
                   autoComplete="off"
@@ -517,10 +528,10 @@ export default function TaskDetailPage() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      Sending
+                      {t("tasks.sending") || "Sending"}
                     </span>
                   ) : (
-                    "Send"
+                    t("tasks.send") || "Send"
                   )}
                 </Button>
               </form>
