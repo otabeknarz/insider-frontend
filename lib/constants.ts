@@ -3,7 +3,7 @@
  */
 
 // API URLs
-export const API_BASE_URL = "https://api.ibratdebate.uz";
+export const API_BASE_URL = "https://insiderapi.ibratdebate.uz";
 export const API_ENDPOINTS = {
   // Authentication
   AUTH: {
