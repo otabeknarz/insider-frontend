@@ -59,14 +59,14 @@ import { TaskStatusFrontend, TaskPriorityFrontend } from "./types";
 
 // Frontend task status options
 export const TASK_STATUS: Record<string, TaskStatusFrontend> = {
-  TODO: "todo",
-  IN_PROGRESS: "inProgress",
-  DONE: "done",
+  ASSIGNED: "assigned",
+  RECEIVED: "received",
+  IN_PROCESS: "inProcess",
+  COMPLETED: "done",
 };
 
 // Frontend task priority options
 export const TASK_PRIORITY: Record<string, TaskPriorityFrontend> = {
-  LOW: "low",
   MEDIUM: "medium",
   HIGH: "high",
 };
