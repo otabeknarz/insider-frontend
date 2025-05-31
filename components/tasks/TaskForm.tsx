@@ -1,6 +1,6 @@
 import React from "react";
 import { useLanguage } from "@/lib/language-provider";
-import { Task, Team, User, TaskPriority } from "@/lib/types";
+import { Task, Team, User, TaskPriorityBackend } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -251,10 +251,10 @@ export function TaskForm({
               <SelectValue placeholder={selectPriorityPlaceholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={TaskPriority.MEDIUM.toString()}>
+              <SelectItem value={TaskPriorityBackend.MEDIUM.toString()}>
                 {priorityDefaultLabel}
               </SelectItem>
-              <SelectItem value={TaskPriority.HIGH.toString()}>
+              <SelectItem value={TaskPriorityBackend.HIGH.toString()}>
                 {priorityHighLabel}
               </SelectItem>
             </SelectContent>

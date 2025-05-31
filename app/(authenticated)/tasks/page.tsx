@@ -14,19 +14,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Loader2 } from "lucide-react";
-import { Task, User, Team, TaskStatus, TaskPriority } from "@/lib/types";
+import { Loader2, Plus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Task as BackendTask,
+  User,
+  Team,
+  TaskStatusBackend,
+  TaskPriorityBackend,
+} from "@/lib/types";
+import { TaskSection } from "@/components/tasks/TaskSection";
 
 // Import our new components
 import { TaskColumn } from "@/components/tasks/TaskColumn";
 import { TaskDrawer } from "@/components/tasks/TaskDrawer";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Initial empty tasks array
-const initialTasks: Task[] = [];
+const initialTasks: BackendTask[] = [];
 
 export default function TasksPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const { t } = useLanguage();
+
+  // Check if we have an edit parameter in the URL
+  const editTaskId = searchParams.get("edit");
 
   // Get proper translations with fallbacks for key labels
   const nameLabel = t("tasks.name") === "tasks.name" ? "Name" : t("tasks.name");
@@ -40,11 +54,12 @@ export default function TasksPage() {
   const tasksTitle =
     t("tasks.title") === "tasks.title" ? "Tasks" : t("tasks.title");
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [tasksToMe, setTasksToMe] = useState<BackendTask[]>(initialTasks);
+  const [tasksByMe, setTasksByMe] = useState<BackendTask[]>(initialTasks);
+  const [draggedTask, setDraggedTask] = useState<BackendTask | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<BackendTask | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -71,9 +86,9 @@ export default function TasksPage() {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
-    status: TaskStatus.ASSIGNED,
+    status: TaskStatusBackend.ASSIGNED,
     is_checked: false,
-    priority: TaskPriority.MEDIUM,
+    priority: TaskPriorityBackend.MEDIUM,
     team: null,
     assigned_users: [],
     deadline: "",
@@ -82,22 +97,30 @@ export default function TasksPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingTask, setSavingTask] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<BackendTask | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch tasks from API
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await ApiService.getTasks();
-      // Handle both possible return types
-      if (Array.isArray(response)) {
-        // If response is already an array of tasks
-        setTasks(response);
+
+      // Fetch tasks assigned to the user
+      const toMeResponse = await ApiService.getTasksToMe();
+      if (Array.isArray(toMeResponse)) {
+        setTasksToMe(toMeResponse);
       } else {
-        // If response is an AxiosResponse with data.results
-        setTasks(response.data.results);
+        setTasksToMe(toMeResponse.data.results);
       }
+
+      // Fetch tasks created by the user
+      const byMeResponse = await ApiService.getTasksByMe();
+      if (Array.isArray(byMeResponse)) {
+        setTasksByMe(byMeResponse);
+      } else {
+        setTasksByMe(byMeResponse.data.results);
+      }
+
       setError(null);
     } catch (err) {
       console.error("Error fetching tasks:", err);
@@ -127,6 +150,63 @@ export default function TasksPage() {
     // Clean up event listener
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
+  
+  // Handle edit task from URL parameter
+  useEffect(() => {
+    // If we have an edit task ID in the URL, find and edit that task
+    if (editTaskId) {
+      const findAndEditTask = async () => {
+        try {
+          // Get the task details
+          const taskResponse = await ApiService.getTask(editTaskId);
+          const task = taskResponse.data;
+          
+          if (task) {
+            // Check if the current user is the creator of the task
+            const isTaskCreatedByMe = typeof task.created_by === 'string' 
+              ? task.created_by === '1' 
+              : task.created_by.id.toString() === '1';
+              
+            if (isTaskCreatedByMe) {
+              // Set up the form for editing
+              setSelectedTask(task);
+              setFormData({
+                name: task.name,
+                description: task.description || "",
+                status: task.status,
+                is_checked: task.is_checked || false,
+                priority: task.priority,
+                team: task.team || null,
+                assigned_users: task.assigned_users
+                  ? task.assigned_users
+                      .filter((user: User) => user && user.id)
+                      .map((user: User) => user.id.toString())
+                  : [],
+                deadline: task.deadline,
+              });
+              
+              // Open the appropriate dialog based on device
+              if (isMobile) {
+                setIsDrawerOpen(true);
+              } else {
+                setIsDialogOpen(true);
+              }
+            } else {
+              // If not created by the user, just redirect back to tasks
+              alert(t('tasks.onlyStatusChangesAllowed') || 'You can only change the status of tasks assigned to you');
+            }
+            
+            // Clear the edit parameter from the URL
+            router.replace('/tasks');
+          }
+        } catch (error) {
+          console.error("Error fetching task for editing:", error);
+        }
+      };
+      
+      findAndEditTask();
+    }
+  }, [editTaskId, isMobile, router, t]);
 
   // Load teams and users
   useEffect(() => {
@@ -183,36 +263,15 @@ export default function TasksPage() {
     }
   }, [formData.team, teams]);
 
-  // Filter tasks by status
-  const assignedTasks = tasks.filter(
-    (task) => task.status === TaskStatus.ASSIGNED
-  );
-  const receivedTasks = tasks.filter(
-    (task) => task.status === TaskStatus.RECEIVED
-  );
-  const inProcessTasks = tasks.filter(
-    (task) => task.status === TaskStatus.IN_PROCESS
-  );
-  const completedTasks = tasks.filter(
-    (task) => task.status === TaskStatus.COMPLETED
-  );
-
-  // Filter users based on selected team
-  const filteredUsers = selectedTeam
-    ? users.filter((user) =>
-        selectedTeam.members.some((member) => member.id === user.id)
-      )
-    : users;
-
   // Handle opening task form for creating a new task
   const handleAddTask = () => {
     setSelectedTask(null);
     setFormData({
       name: "",
       description: "",
-      status: TaskStatus.ASSIGNED,
+      status: TaskStatusBackend.ASSIGNED,
       is_checked: false,
-      priority: TaskPriority.MEDIUM,
+      priority: TaskPriorityBackend.MEDIUM,
       team: null,
       assigned_users: [],
       deadline: "",
@@ -227,7 +286,21 @@ export default function TasksPage() {
   };
 
   // Handle opening task form for editing an existing task
-  const handleEditTask = (task: Task) => {
+  const handleEditTask = (task: BackendTask) => {
+    // For tasks assigned to me but not created by me, only allow status changes
+    const isTaskCreatedByMe =
+      typeof task.created_by === "string"
+        ? task.created_by === "1"
+        : task.created_by.id.toString() === "1";
+
+    // If the task is not created by me and we're in the "To Me" tab,
+    // redirect to the task's detail page instead of opening the edit form
+    if (!isTaskCreatedByMe && activeTab === "to-me") {
+      // Redirect to task detail page
+      router.push(`/tasks/${task.id}`);
+      return;
+    }
+
     setSelectedTask(task);
     setFormData({
       name: task.name,
@@ -280,7 +353,7 @@ export default function TasksPage() {
       const taskData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        status: TaskStatus.ASSIGNED, // New tasks always start as assigned
+        status: TaskStatusBackend.ASSIGNED, // New tasks always start as assigned
         is_checked: false,
         priority: Number(formData.priority),
         team: formData.team ? Number(formData.team) : null,
@@ -318,7 +391,7 @@ export default function TasksPage() {
   };
 
   // Handle task deletion
-  const handleDeleteTask = (task: Task, event?: React.MouseEvent) => {
+  const handleDeleteTask = (task: BackendTask, event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation(); // Prevent opening the edit form when clicking delete
     }
@@ -337,9 +410,28 @@ export default function TasksPage() {
       await ApiService.deleteTask(taskToDelete.id.toString());
 
       // Update UI after successful deletion
-      setTasks((prevTasks) =>
-        prevTasks.filter((task) => task.id !== taskToDelete.id)
+      // Update the appropriate task list based on who created the task
+      const isTaskByMe =
+        typeof taskToDelete.created_by === "string"
+          ? taskToDelete.created_by === "1"
+          : taskToDelete.created_by.id.toString() === "1";
+
+      if (isTaskByMe) {
+        setTasksByMe((prevTasks) =>
+          prevTasks.filter((task) => task.id !== taskToDelete.id)
+        );
+      }
+
+      // Also update tasksToMe if the task was assigned to the current user
+      const isTaskToMe = taskToDelete.assigned_users.some((user) =>
+        typeof user === "string" ? user === "1" : user.id.toString() === "1"
       );
+
+      if (isTaskToMe) {
+        setTasksToMe((prevTasks) =>
+          prevTasks.filter((task) => task.id !== taskToDelete.id)
+        );
+      }
 
       // Close the confirmation dialog
       setIsDeleteDialogOpen(false);
@@ -353,7 +445,7 @@ export default function TasksPage() {
   };
 
   // Handle drag start
-  const handleDragStart = (task: Task) => {
+  const handleDragStart = (task: BackendTask) => {
     setDraggedTask(task);
   };
 
@@ -368,11 +460,32 @@ export default function TasksPage() {
 
     try {
       // Update task status in UI first for immediate feedback
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === draggedTask.id ? { ...task, status } : task
-        )
+      // Update the appropriate task list based on who created the task
+      const isTaskByMe =
+        typeof draggedTask.created_by === "string"
+          ? draggedTask.created_by === "1"
+          : draggedTask.created_by.id.toString() === "1";
+
+      if (isTaskByMe) {
+        setTasksByMe((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === draggedTask.id ? { ...task, status } : task
+          )
+        );
+      }
+
+      // Also update tasksToMe if the task was assigned to the current user
+      const isTaskToMe = draggedTask.assigned_users.some((user) =>
+        typeof user === "string" ? user === "1" : user.id.toString() === "1"
       );
+
+      if (isTaskToMe) {
+        setTasksToMe((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === draggedTask.id ? { ...task, status } : task
+          )
+        );
+      }
 
       // Update task status in API
       await ApiService.updateTask(draggedTask.id.toString(), {
@@ -390,195 +503,134 @@ export default function TasksPage() {
     }
   };
 
+  const [activeTab, setActiveTab] = useState("to-me");
+
+  // We now get tasks from separate API endpoints, so no need to filter
+
+  // Handle priority change for mobile devices
+  const handlePriorityChange = async (
+    task: BackendTask,
+    newPriority: number
+  ) => {
+    try {
+      // Update UI first for immediate feedback
+      if (activeTab === "by-me") {
+        setTasksByMe((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === task.id ? { ...t, priority: newPriority } : t
+          )
+        );
+      } else if (activeTab === "to-me") {
+        setTasksToMe((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === task.id ? { ...t, priority: newPriority } : t
+          )
+        );
+      }
+
+      // Update task priority in API
+      await ApiService.updateTask(task.id.toString(), {
+        priority: newPriority,
+      });
+    } catch (error) {
+      console.error("Error updating task priority:", error);
+      // Revert UI changes if API call fails
+      fetchTasks();
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 px-4 md:px-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">{tasksTitle}</h1>
-          <p className="text-muted-foreground text-sm">
-            {t("tasks.description") === "tasks.description"
-              ? "Manage and organize your tasks"
-              : t("tasks.description")}
-          </p>
-        </div>
-        <Button
-          onClick={handleAddTask}
-          className="flex items-center gap-2 self-start"
-          size="default"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{addTaskLabel}</span>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">{tasksTitle}</h1>
+        <Button onClick={handleAddTask}>
+          <Plus className="mr-2 h-4 w-4" />
+          {addTaskLabel}
         </Button>
       </div>
 
-      <div>
-        {/* Task Drawer (Mobile) */}
-        <TaskDrawer
-          isOpen={isDrawerOpen}
-          setIsOpen={setIsDrawerOpen}
-          formData={formData}
-          setFormData={setFormData}
-          handleChange={handleChange}
-          handleSubmit={handleSubmit}
-          selectedTask={selectedTask}
-          teams={teams}
-          users={users}
-          loadingTeams={loadingTeams}
-          loadingUsers={loadingUsers}
-          teamSearch={teamSearch}
-          userSearch={userSearch}
-          setTeamSearch={setTeamSearch}
-          setUserSearch={setUserSearch}
-          selectedTeam={selectedTeam}
-          savingTask={savingTask}
-        />
+      <Tabs defaultValue="to-me" onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="to-me">To Me</TabsTrigger>
+          <TabsTrigger value="by-me">By Me</TabsTrigger>
+        </TabsList>
 
-        {/* Task Dialog (Desktop) */}
-        <TaskDialog
-          isOpen={isDialogOpen}
-          setIsOpen={setIsDialogOpen}
-          formData={formData}
-          setFormData={setFormData}
-          handleChange={handleChange}
-          handleSubmit={handleSubmit}
-          selectedTask={selectedTask}
-          teams={teams}
-          users={users}
-          loadingTeams={loadingTeams}
-          loadingUsers={loadingUsers}
-          teamSearch={teamSearch}
-          userSearch={userSearch}
-          setTeamSearch={setTeamSearch}
-          setUserSearch={setUserSearch}
-          selectedTeam={selectedTeam}
-          savingTask={savingTask}
-        />
-      </div>
+        <TabsContent value="to-me" className="mt-0">
+          <TaskSection
+            tasks={tasksToMe}
+            loading={loading}
+            error={error}
+            onAddTask={handleAddTask}
+            onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            isTasksCreatedByMe={false} // These tasks are assigned to me, not created by me
+            onPriorityChange={handlePriorityChange}
+            title={t("tasks.assignedToMe") || "Tasks Assigned to Me"}
+          />
+        </TabsContent>
 
-      {/* Loading and error states */}
-      {loading && (
-        <div className="flex flex-col justify-center items-center h-64 gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-muted-foreground text-sm font-medium">
-            {t("tasks.loading") === "tasks.loading"
-              ? "Loading tasks..."
-              : t("tasks.loading")}
-          </p>
-        </div>
-      )}
+        <TabsContent value="by-me" className="mt-0">
+          <TaskSection
+            tasks={tasksByMe}
+            loading={loading}
+            error={error}
+            onAddTask={handleAddTask}
+            onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            isTasksCreatedByMe={true} // These tasks are created by me
+            onPriorityChange={handlePriorityChange}
+            title={t("tasks.createdByMe") || "Tasks Created by Me"}
+          />
+        </TabsContent>
+      </Tabs>
 
-      {error && (
-        <div className="bg-destructive/15 text-destructive p-4 rounded-md mb-6 border border-destructive/30 flex items-start gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mt-0.5"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <div>
-            <h4 className="font-medium">
-              {t("tasks.errorTitle") === "tasks.errorTitle"
-                ? "Error Loading Tasks"
-                : t("tasks.errorTitle")}
-            </h4>
-            <p className="text-sm">{error}</p>
-          </div>
-        </div>
-      )}
+      {/* Task Drawer (Mobile) */}
+      <TaskDrawer
+        isOpen={isDrawerOpen}
+        setIsOpen={setIsDrawerOpen}
+        formData={formData}
+        setFormData={setFormData}
+        handleChange={handleChange}
+        handleSubmit={handleSubmit}
+        selectedTask={selectedTask}
+        teams={teams}
+        users={users}
+        loadingTeams={loadingTeams}
+        loadingUsers={loadingUsers}
+        teamSearch={teamSearch}
+        userSearch={userSearch}
+        setTeamSearch={setTeamSearch}
+        setUserSearch={setUserSearch}
+        selectedTeam={selectedTeam}
+        savingTask={savingTask}
+      />
 
-      {!loading && !error && tasks.length === 0 ? (
-        <div className="bg-muted/50 rounded-lg p-10 text-center">
-          <div className="flex justify-center mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-muted-foreground"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="9" x2="15" y2="9" />
-              <line x1="9" y1="12" x2="15" y2="12" />
-              <line x1="9" y1="15" x2="13" y2="15" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium mb-2">
-            {t("tasks.noTasks") === "tasks.noTasks"
-              ? "No Tasks Yet"
-              : t("tasks.noTasks")}
-          </h3>
-          <p className="text-muted-foreground mb-6">
-            {t("tasks.createFirst") === "tasks.createFirst"
-              ? "Create your first task to get started"
-              : t("tasks.createFirst")}
-          </p>
-          <Button onClick={handleAddTask} className="mx-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            {addTaskLabel}
-          </Button>
-        </div>
-      ) : (
-        !loading &&
-        !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            <TaskColumn
-              title={t("tasks.assigned") || "ASSIGNED"}
-              tasks={assignedTasks}
-              status={TaskStatus.ASSIGNED}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            />
-            <TaskColumn
-              title={t("tasks.received") || "RECEIVED"}
-              tasks={receivedTasks}
-              status={TaskStatus.RECEIVED}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            />
-            <TaskColumn
-              title={t("tasks.inProcess") || "IN PROCESS"}
-              tasks={inProcessTasks}
-              status={TaskStatus.IN_PROCESS}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            />
-            <TaskColumn
-              title={t("tasks.completed") || "COMPLETED"}
-              tasks={completedTasks}
-              status={TaskStatus.COMPLETED}
-              onEdit={handleEditTask}
-              onDelete={handleDeleteTask}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            />
-          </div>
-        )
-      )}
+      {/* Task Dialog (Desktop) */}
+      <TaskDialog
+        isOpen={isDialogOpen}
+        setIsOpen={setIsDialogOpen}
+        formData={formData}
+        setFormData={setFormData}
+        handleChange={handleChange}
+        handleSubmit={handleSubmit}
+        selectedTask={selectedTask}
+        teams={teams}
+        users={users}
+        loadingTeams={loadingTeams}
+        loadingUsers={loadingUsers}
+        teamSearch={teamSearch}
+        userSearch={userSearch}
+        setTeamSearch={setTeamSearch}
+        setUserSearch={setUserSearch}
+        selectedTeam={selectedTeam}
+        savingTask={savingTask}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog

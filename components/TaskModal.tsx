@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import ApiService from "@/lib/api";
+import { TaskDisplay, TaskStatusFrontend, TaskPriorityFrontend, convertTaskToApiFormat } from "@/lib/types";
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  task?: Task | null;
+  task?: TaskDisplay | null;
   onTaskSaved: () => void;
 }
 
@@ -33,14 +34,15 @@ interface User {
   updated_at: string;
 }
 
-interface Task {
-  id?: string;
-  title: string;
-  description: string;
-  status: "todo" | "inProgress" | "done";
-  priority: "low" | "medium" | "high";
-  assignee?: string;
-  dueDate?: string;
+interface Comment {
+  id: string;
+  user: User;
+  text: string;
+  date: string;
+}
+
+interface TaskWithUIComments extends TaskDisplay {
+  comments?: Comment[];
 }
 
 export default function TaskModal({
@@ -51,31 +53,38 @@ export default function TaskModal({
 }: TaskModalProps) {
   const { t } = useLanguage();
   const isEditing = !!task;
-  
-  const [formData, setFormData] = useState<Task>({
+
+  const [formData, setFormData] = useState<TaskWithUIComments>({
     title: "",
     description: "",
-    status: "todo",
-    priority: "medium",
-    assignee: "",
+    status: "todo" as TaskStatusFrontend,
+    priority: "medium" as TaskPriorityFrontend,
     dueDate: "",
+    comments: [],
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  
-  // Load task data if editing
+
   useEffect(() => {
     if (task) {
       setFormData({
         ...task,
       });
+    } else {
+      setFormData({
+        title: "",
+        description: "",
+        status: "todo" as TaskStatusFrontend,
+        priority: "medium" as TaskPriorityFrontend,
+        dueDate: "",
+        comments: [],
+      });
     }
   }, [task]);
 
-  // Load users for assignee dropdown
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -95,31 +104,27 @@ export default function TaskModal({
 
     fetchUsers();
   }, []);
-  
-  // Handle form input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData((prev: TaskWithUIComments) => ({
       ...prev,
       [name]: value,
     }));
   };
-  
-  // Handle form submission
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       if (isEditing && task?.id) {
-        // Update existing task
-        await ApiService.updateTask(task.id, formData);
+        await ApiService.updateTask(String(task.id), convertTaskToApiFormat(formData));
       } else {
-        // Create new task
-        await ApiService.createTask(formData);
+        await ApiService.createTask(convertTaskToApiFormat(formData));
       }
-      
+
       onTaskSaved();
       onClose();
     } catch (err) {
@@ -178,7 +183,7 @@ export default function TaskModal({
               name="title"
               type="text"
               value={formData.title}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
             />
@@ -193,7 +198,7 @@ export default function TaskModal({
               id="description"
               name="description"
               value={formData.description}
-              onChange={handleChange}
+              onChange={handleInputChange}
               rows={3}
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
             />
@@ -208,7 +213,7 @@ export default function TaskModal({
               id="status"
               name="status"
               value={formData.status}
-              onChange={handleChange}
+              onChange={handleInputChange}
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
             >
               <option value="todo">{t("tasks.todo")}</option>
@@ -226,7 +231,7 @@ export default function TaskModal({
               id="priority"
               name="priority"
               value={formData.priority}
-              onChange={handleChange}
+              onChange={handleInputChange}
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
             >
               <option value="low">Low</option>
@@ -244,7 +249,7 @@ export default function TaskModal({
               id="assignee"
               name="assignee"
               value={formData.assignee || ""}
-              onChange={handleChange}
+              onChange={handleInputChange}
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
               disabled={loadingUsers}
             >
@@ -270,7 +275,7 @@ export default function TaskModal({
               name="dueDate"
               type="date"
               value={formData.dueDate || ""}
-              onChange={handleChange}
+              onChange={handleInputChange}
               className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-background"
             />
           </div>

@@ -23,65 +23,7 @@ import {
   Clock,
   ListChecks,
 } from "lucide-react";
-
-// Task type definition
-interface Task {
-  id: number;
-  created_at: string;
-  updated_at: string;
-  name: string;
-  description: string;
-  status: number;
-  is_checked: boolean;
-  priority: number;
-  deadline: string;
-  created_by: string;
-  team: number;
-  assigned_users: User[];
-}
-
-// User type definition
-interface User {
-  id: string;
-  username: string;
-  first_name: string;
-  last_name: string;
-  position?: {
-    id: number;
-    name: string;
-  };
-  region?: {
-    id: number;
-    name: string;
-  };
-  district?: {
-    id: number;
-    name: string;
-    region: number;
-  };
-  created_at: string;
-  updated_at: string;
-}
-
-// Activity type definition
-interface Activity {
-  id: string;
-  type: "created" | "updated" | "completed";
-  taskTitle: string;
-  timestamp: string;
-}
-
-// Notification type definition
-interface Notification {
-  id: number;
-  created_at: string;
-  updated_at: string;
-  message: string;
-  is_read: boolean;
-  task: number | null;
-  team: number | null;
-  user: string;
-}
+import { Task, User, Activity, Notification, TaskStatusBackend, TaskPriorityBackend } from "@/lib/types";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -122,13 +64,11 @@ export default function HomePage() {
           .map((task: Task, index: number) => {
             return {
               id: `activity-${task.id}`,
-              type:
-                task.status === 2
-                  ? "completed"
-                  : ((task.status === 1 ? "updated" : "created") as
-                      | "created"
-                      | "updated"
-                      | "completed"),
+              type: (task.status === TaskStatusBackend.COMPLETED
+                ? "completed"
+                : task.status === TaskStatusBackend.ASSIGNED || task.status === TaskStatusBackend.IN_PROCESS
+                ? "updated"
+                : "created") as "created" | "updated" | "completed",
               taskTitle: task.name,
               timestamp: formatDistanceToNow(new Date(task.updated_at), {
                 addSuffix: true,
@@ -260,23 +200,22 @@ export default function HomePage() {
                   {tasks.slice(0, 5).map((task) => {
                     // Determine priority badge color
                     const priorityVariants = {
-                      1: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-                      2: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-                      3: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                      [TaskPriorityBackend.MEDIUM]: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+                      [TaskPriorityBackend.HIGH]: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
                     };
 
                     // Determine priority label
                     const priorityLabels = {
-                      1: t("tasks.priorityLow"),
-                      2: t("tasks.priorityMedium"),
-                      3: t("tasks.priorityHigh"),
+                      [TaskPriorityBackend.MEDIUM]: t("tasks.priorityMedium") || "Medium",
+                      [TaskPriorityBackend.HIGH]: t("tasks.priorityHigh") || "High",
                     };
 
                     // Determine status label
                     const statusLabels = {
-                      0: t("tasks.todo"),
-                      1: t("tasks.inProgress"),
-                      2: t("tasks.done"),
+                      [TaskStatusBackend.ASSIGNED]: t("tasks.assigned") || "Assigned",
+                      [TaskStatusBackend.RECEIVED]: t("tasks.received") || "Received",
+                      [TaskStatusBackend.IN_PROCESS]: t("tasks.inProcess") || "In Process",
+                      [TaskStatusBackend.COMPLETED]: t("tasks.completed") || "Completed",
                     };
 
                     // Format deadline
@@ -304,16 +243,16 @@ export default function HomePage() {
                             <Badge
                               variant="outline"
                               className={
-                                priorityVariants[task.priority as 1 | 2 | 3]
+                                priorityVariants[task.priority as TaskPriorityBackend]
                               }
                             >
-                              {priorityLabels[task.priority as 1 | 2 | 3]}
+                              {priorityLabels[task.priority as TaskPriorityBackend] || "Medium"}
                             </Badge>
                           </div>
 
                           <div className="flex flex-wrap gap-2 mt-2 text-xs">
                             <Badge variant="secondary">
-                              {statusLabels[task.status as 0 | 1 | 2]}
+                              {statusLabels[task.status as TaskStatusBackend] || "Unknown Status"}
                             </Badge>
                             {deadline && (
                               <Badge

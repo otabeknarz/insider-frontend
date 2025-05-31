@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect, FormEvent, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import ApiService from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/language-provider";
-import { TaskStatus, TaskPriority } from "@/lib/types";
+import { TaskStatusBackend, TaskPriorityBackend } from "@/lib/types";
 
 // UI Components
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Pencil, ArrowLeft } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +26,7 @@ interface TaskDetailResponse extends Task {}
 
 export default function TaskDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const { user: currentUser } = useAuth();
   const { t } = useLanguage();
   const [task, setTask] = useState<TaskDetailResponse | null>(null);
@@ -141,22 +143,22 @@ export default function TaskDetailPage() {
   // Helper functions for UI
   const getStatusLabel = (status: number): string => {
     const statusLabels = {
-      [TaskStatus.ASSIGNED]: t("tasks.assigned") || "ASSIGNED",
-      [TaskStatus.RECEIVED]: t("tasks.received") || "RECEIVED",
-      [TaskStatus.IN_PROCESS]: t("tasks.inProcess") || "IN PROCESS",
-      [TaskStatus.COMPLETED]: t("tasks.completed") || "COMPLETED",
+      [TaskStatusBackend.ASSIGNED]: t("tasks.assigned") || "ASSIGNED",
+      [TaskStatusBackend.RECEIVED]: t("tasks.received") || "RECEIVED",
+      [TaskStatusBackend.IN_PROCESS]: t("tasks.inProcess") || "IN PROCESS",
+      [TaskStatusBackend.COMPLETED]: t("tasks.completed") || "COMPLETED",
     };
     return statusLabels[status as keyof typeof statusLabels] || "Unknown";
   };
 
   const getStatusColor = (status: number): string => {
     const statusColors = {
-      [TaskStatus.ASSIGNED]: "bg-gray-200 text-gray-800",
-      [TaskStatus.RECEIVED]:
+      [TaskStatusBackend.ASSIGNED]: "bg-gray-200 text-gray-800",
+      [TaskStatusBackend.RECEIVED]:
         "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-      [TaskStatus.IN_PROCESS]:
+      [TaskStatusBackend.IN_PROCESS]:
         "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-      [TaskStatus.COMPLETED]:
+      [TaskStatusBackend.COMPLETED]:
         "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
     };
     return statusColors[status as keyof typeof statusColors] || "bg-gray-200";
@@ -164,17 +166,17 @@ export default function TaskDetailPage() {
 
   const getPriorityLabel = (priority: number): string => {
     const priorityLabels = {
-      [TaskPriority.MEDIUM]: t("tasks.priorityDefault") || "MEDIUM",
-      [TaskPriority.HIGH]: t("tasks.priorityHigh") || "HIGH",
+      [TaskPriorityBackend.MEDIUM]: t("tasks.priorityDefault") || "MEDIUM",
+      [TaskPriorityBackend.HIGH]: t("tasks.priorityHigh") || "HIGH",
     };
     return priorityLabels[priority as keyof typeof priorityLabels] || "Unknown";
   };
 
   const getPriorityColor = (priority: number): string => {
     const priorityColors = {
-      [TaskPriority.MEDIUM]:
+      [TaskPriorityBackend.MEDIUM]:
         "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-      [TaskPriority.HIGH]:
+      [TaskPriorityBackend.HIGH]:
         "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
     };
     return (
@@ -392,6 +394,21 @@ export default function TaskDetailPage() {
                     </div>
                   </div>
                 </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button variant="outline" onClick={() => router.push('/tasks')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    {t("common.back") || "Back"}
+                  </Button>
+                  
+                  {/* Only show edit button if the task was created by the current user */}
+                  {task.created_by && task.created_by.id && 
+                   task.created_by.id.toString() === currentUser?.id && (
+                    <Button onClick={() => router.push(`/tasks?edit=${task.id}`)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {t("common.edit") || "Edit"}
+                    </Button>
+                  )}
+                </CardFooter>
               </Card>
             </div>
           </div>

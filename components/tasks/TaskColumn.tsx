@@ -11,6 +11,8 @@ interface TaskColumnProps {
   onDragStart: (task: Task) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (status: number) => void;
+  isTasksCreatedByMe?: boolean; // Indicates if tasks in this column were created by the current user
+  onPriorityChange?: (task: Task, newPriority: number) => void; // For mobile priority changes
 }
 
 export function TaskColumn({
@@ -22,6 +24,8 @@ export function TaskColumn({
   onDragStart,
   onDragOver,
   onDrop,
+  isTasksCreatedByMe = false,
+  onPriorityChange,
 }: TaskColumnProps) {
   return (
     <div
@@ -43,6 +47,8 @@ export function TaskColumn({
             onEdit={onEdit}
             onDelete={onDelete}
             onDragStart={onDragStart}
+            isCreatedByMe={isTasksCreatedByMe}
+            onPriorityChange={onPriorityChange}
           />
         ))}
       </div>

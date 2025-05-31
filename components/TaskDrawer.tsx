@@ -14,11 +14,12 @@ import {
 } from "@/components/ui/drawer";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TaskDisplay, TaskStatusFrontend, TaskPriorityFrontend, convertTaskToApiFormat } from "@/lib/types";
 
 interface TaskDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  task?: Task | null;
+  task: TaskDisplay | null;
   onTaskSaved: () => void;
 }
 
@@ -44,16 +45,6 @@ interface User {
   updated_at: string;
 }
 
-interface Task {
-  id?: string;
-  title: string;
-  description: string;
-  status: "todo" | "inProgress" | "done";
-  priority: "low" | "medium" | "high";
-  assignee?: string;
-  dueDate?: string;
-}
-
 export default function TaskDrawer({
   isOpen,
   onClose,
@@ -63,11 +54,11 @@ export default function TaskDrawer({
   const { t } = useLanguage();
   const isEditing = !!task;
   
-  const [formData, setFormData] = useState<Task>({
+  const [formData, setFormData] = useState<TaskDisplay>({
     title: "",
     description: "",
-    status: "todo",
-    priority: "medium",
+    status: "todo" as TaskStatusFrontend,
+    priority: "medium" as TaskPriorityFrontend,
     assignee: "",
     dueDate: "",
   });
@@ -112,7 +103,7 @@ export default function TaskDrawer({
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData((prev: TaskDisplay) => ({
       ...prev,
       [name]: value,
     }));
@@ -127,7 +118,7 @@ export default function TaskDrawer({
     try {
       if (isEditing && task?.id) {
         // Update existing task
-        await ApiService.updateTask(task.id, formData);
+        await ApiService.updateTask(String(task.id), convertTaskToApiFormat(formData));
       } else {
         // Create new task
         await ApiService.createTask(formData);

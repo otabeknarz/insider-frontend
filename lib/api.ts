@@ -361,6 +361,18 @@ class ApiService {
     return this.getWithPagination<T>("/api/core/tasks/", getAll);
   }
 
+  static getTasksToMe<T = any>(
+    getAll: boolean = false
+  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+    return this.getWithPagination<T>("/api/core/tasks/to-me/", getAll);
+  }
+
+  static getTasksByMe<T = any>(
+    getAll: boolean = false
+  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+    return this.getWithPagination<T>("/api/core/tasks/by-me/", getAll);
+  }
+
   static getUserTasks<T = any>(
     getAll: boolean = false
   ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
