@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, FormEvent, useRef } from "react";
-import "./scrollbar.css";
 import { useParams, useRouter } from "next/navigation";
 import ApiService from "@/lib/api";
 import { useAuth } from "@/lib/auth";
