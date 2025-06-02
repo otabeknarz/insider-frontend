@@ -39,7 +39,7 @@ export default function AuthenticatedLayout({
     <div className="flex min-h-screen">
       <Navigation />
       <Header />
-      <main className="flex-grow md:ml-64 p-4 md:p-6 pb-20 md:pb-6 mt-12">
+      <main className="flex-grow md:ml-64 p-4 md:p-6 pb-20 md:pb-6 mt-8">
         {children}
       </main>
     </div>

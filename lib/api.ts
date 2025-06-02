@@ -413,6 +413,24 @@ class ApiService {
     });
   }
 
+  static addUsersToTask(
+    taskId: string,
+    userIds: number[]
+  ): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "post",
+      url: `/api/core/tasks/${taskId}/add_users/`,
+      data: { user_ids: userIds },
+    });
+  }
+
+  static getTaskComments(taskId: string): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "get",
+      url: `/api/core/tasks/${taskId}/comments/`,
+    });
+  }
+
   static deleteTask(id: string): Promise<AxiosResponse> {
     return dedupedRequest({ method: "delete", url: `/api/core/tasks/${id}/` });
   }

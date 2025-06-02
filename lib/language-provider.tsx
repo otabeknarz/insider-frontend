@@ -133,6 +133,17 @@ const translations = {
     "tasks.loadError": "Failed to load tasks. Please try again later.",
     "tasks.saveError": "Failed to save task. Please try again.",
     "tasks.updateError": "Failed to update task. Please try again.",
+    "chat.taskChat": "Task Chat",
+    "chat.message": "message",
+    "chat.messages": "messages",
+    "chat.noMessages": "No messages yet",
+    "chat.startConversation": "Start the conversation about this task",
+    "chat.typePlaceholder": "Type a message...",
+    "chat.send": "Send message",
+    "chat.today": "Today",
+    "chat.yesterday": "Yesterday",
+    "tasks.openChat": "Open Chat",
+    "tasks.openFullChat": "Open Full Chat",
 
     // Settings
     "settings.theme": "Theme",
@@ -348,6 +359,19 @@ const translations = {
     "tasks.backToTasks": "Vazifalarga qaytish",
     "tasks.noTeam": "Jamoasiz",
     "tasks.loadError": "Vazifalarni yuklashda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+    
+    // Chat
+    "chat.taskChat": "Vazifa Suhbati",
+    "chat.message": "xabar",
+    "chat.messages": "xabarlar",
+    "chat.noMessages": "Hali xabarlar yo'q",
+    "chat.startConversation": "Ushbu vazifa haqida suhbatni boshlang",
+    "chat.typePlaceholder": "Xabar yozing...",
+    "chat.send": "Xabarni yuborish",
+    "chat.today": "Bugun",
+    "chat.yesterday": "Kecha",
+    "tasks.openChat": "Suhbatni ochish",
+    "tasks.openFullChat": "To'liq suhbatni ochish",
     "tasks.saveError": "Vazifani saqlashda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
     "tasks.updateError": "Vazifani yangilashda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
 

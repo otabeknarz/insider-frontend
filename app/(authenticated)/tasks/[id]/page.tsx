@@ -12,15 +12,47 @@ import { TaskStatusBackend, TaskPriorityBackend } from "@/lib/types";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Pencil, ArrowLeft } from "lucide-react";
+import { Pencil, ArrowLeft, ArrowRight, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+
 // Task and Comment interfaces
-import { Task, Comment, User } from "@/lib/types";
+import { Task, User } from "@/lib/types";
+
+// Extended Comment interface to match the API response
+interface Comment {
+  id: number;
+  user: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    position: {
+      id: string;
+      name: string;
+    } | null;
+    region: {
+      id: number;
+      name: string;
+    } | null;
+    district: {
+      id: number;
+      name: string;
+      region: number;
+    } | null;
+    created_at: string;
+    updated_at: string;
+    date_joined: string;
+  };
+  created_at: string;
+  updated_at: string;
+  message: string;
+  is_read: boolean;
+  task: string | number;
+}
 
 interface TaskDetailResponse extends Task {}
 
@@ -34,111 +66,11 @@ export default function TaskDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("details");
 
-  // Reference to chat container for auto-scrolling
-  const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Interval for fetching comments
-  const commentIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Function to fetch task with comments
-  const fetchTaskWithComments = async () => {
-    try {
-      const taskResponse = await ApiService.getTask(id as string);
-      const newTask = taskResponse.data;
 
-      // Scroll to bottom of chat if new comments arrived
-      if (
-        chatContainerRef.current &&
-        task &&
-        newTask.comments.length > task.comments.length
-      ) {
-        setTimeout(() => {
-          if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop =
-              chatContainerRef.current.scrollHeight;
-          }
-        }, 100);
-      }
 
-      setTask(newTask);
-    } catch (err) {
-      console.error("Error fetching task with comments:", err);
-    }
-  };
-
-  // Fetch task data
-  useEffect(() => {
-    const fetchTask = async () => {
-      try {
-        setLoading(true);
-        // Get task details
-        const taskResponse = await ApiService.getTask(id as string);
-        setTask(taskResponse.data);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching task:", err);
-        setError("Failed to load task details. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchTask();
-    }
-  }, [id]);
-
-  // Fetch comments with polling
-  useEffect(() => {
-    // Initial fetch
-    fetchTaskWithComments();
-
-    // Set up polling interval (every 5 seconds)
-    commentIntervalRef.current = setInterval(fetchTaskWithComments, 5000);
-
-    // Clean up interval on unmount
-    return () => {
-      if (commentIntervalRef.current) {
-        clearInterval(commentIntervalRef.current);
-      }
-    };
-  }, [id, task?.comments?.length]);
-
-  // Handle comment submission
-  const handleSubmitComment = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-
-    try {
-      setSubmitting(true);
-
-      // Make the POST request to add a comment
-      await ApiService.addTaskComment(id as string, newComment);
-
-      // Clear the input field
-      setNewComment("");
-
-      // Fetch latest task data including the new comment
-      await fetchTaskWithComments();
-
-      // Scroll to bottom after new comment is added
-      if (chatContainerRef.current) {
-        setTimeout(() => {
-          if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop =
-              chatContainerRef.current.scrollHeight;
-          }
-        }, 100);
-      }
-    } catch (err) {
-      console.error("Error adding comment:", err);
-      alert("Failed to post comment. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   // Helper functions for UI
   const getStatusLabel = (status: number): string => {
@@ -184,16 +116,16 @@ export default function TaskDetailPage() {
     );
   };
 
-  const getUserName = (userId: number): string => {
-    const user = task?.assigned_users.find((u) => u.id === userId);
-    return user ? `${user.first_name} ${user.last_name}` : userId.toString();
-  };
-
-  const getUserInitials = (userId: number): string => {
-    const user = task?.assigned_users.find((u) => u.id === userId);
-    return user
-      ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
-      : userId.toString().substring(0, 2).toUpperCase();
+  const getUserInitials = (user: User | number): string => {
+    if (typeof user === 'number') {
+      // If user is an ID, find the user object in assigned_users
+      if (!task?.assigned_users) return "";
+      const userObj = task.assigned_users.find(u => Number(u.id) === user);
+      if (!userObj) return "";
+      return `${userObj.first_name?.[0] || ""}${userObj.last_name?.[0] || ""}`;
+    }
+    // If user is already a User object
+    return `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`;
   };
 
   const formatDate = (dateString: string): string => {
@@ -207,13 +139,27 @@ export default function TaskDetailPage() {
     });
   };
 
-  // Auto-scroll to bottom when switching to chat tab
+  // Fetch task data
   useEffect(() => {
-    if (activeTab === "chat" && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+    const fetchTask = async () => {
+      try {
+        setLoading(true);
+        // Get task details
+        const taskResponse = await ApiService.getTask(id as string);
+        setTask(taskResponse.data);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching task:", err);
+        setError("Failed to load task details. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchTask();
     }
-  }, [activeTab]);
+  }, [id]);
 
   // Loading state
   if (loading) {
@@ -261,21 +207,10 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      <Tabs
-        defaultValue="details"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="details">
-            {t("tasks.taskDetails") || "Task Details"}
-          </TabsTrigger>
-          <TabsTrigger value="chat">
-            {t("tasks.comments") || "Chat"} ({task?.comments?.length || 0})
-          </TabsTrigger>
+      <Tabs defaultValue="details" className="w-full">
+        <TabsList className="hidden">  
+          <TabsTrigger value="details">{t("tasks.details") || "Details"}</TabsTrigger>
         </TabsList>
-
         <TabsContent value="details" className="mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-3">
@@ -328,7 +263,7 @@ export default function TaskDetailPage() {
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="text-xs">
-                              {getUserInitials(task.created_by.id)}
+                              {task.created_by.first_name.charAt(0).toUpperCase() + task.created_by.last_name.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <span>{`${task.created_by.first_name} ${task.created_by.last_name}`}</span>
@@ -364,7 +299,7 @@ export default function TaskDetailPage() {
                               >
                                 <Avatar className="h-5 w-5">
                                   <AvatarFallback className="text-xs">
-                                    {getUserInitials(user.id)}
+                                    {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="text-sm">{`${user.first_name} ${user.last_name}`}</span>
@@ -399,162 +334,19 @@ export default function TaskDetailPage() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     {t("common.back") || "Back"}
                   </Button>
-                  
-                  {/* Only show edit button if the task was created by the current user */}
-                  {task.created_by && task.created_by.id && 
-                   task.created_by.id.toString() === currentUser?.id && (
-                    <Button onClick={() => router.push(`/tasks?edit=${task.id}`)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      {t("common.edit") || "Edit"}
-                    </Button>
-                  )}
+                  <Button 
+                    onClick={() => router.push(`/tasks/${id}/chat`)}
+                    className="flex items-center gap-2"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {t("tasks.openChat") || "Open Chat"}
+                  </Button>
                 </CardFooter>
               </Card>
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="chat" className="mt-0">
-          <div className="relative h-[calc(100vh-200px)] md:h-[calc(80vh-200px)] flex flex-col">
-            <Card className="flex-1 flex flex-col overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <CardTitle>{t("tasks.taskChat") || "Task Chat"}</CardTitle>
-                  <Badge variant="outline" className="ml-2">
-                    {task.comments.length}{" "}
-                    {task.comments.length === 1
-                      ? t("tasks.message") || "message"
-                      : t("tasks.messages") || "messages"}
-                  </Badge>
-                </div>
-                <Separator className="mt-4" />
-              </CardHeader>
-              <CardContent className="flex-grow flex flex-col p-0 overflow-hidden">
-                {/* Chat messages with scrollable area */}
-                <div
-                  ref={chatContainerRef}
-                  className="flex-grow overflow-y-auto px-4 md:px-6 py-4 space-y-4 pb-20"
-                >
-                  {task?.comments && task.comments.length > 0 ? (
-                    task.comments.map((comment) => {
-                      const isCurrentUser =
-                        comment.user === Number(currentUser?.id);
-                      return (
-                        <div
-                          key={comment.id}
-                          className={`flex gap-2 ${
-                            isCurrentUser ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          {!isCurrentUser && (
-                            <Avatar className="h-7 w-7 mt-1 flex-shrink-0">
-                              <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-                                {getUserInitials(comment.user)}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div
-                            className={`max-w-[75%] ${
-                              isCurrentUser ? "order-1" : "order-2"
-                            }`}
-                          >
-                            <div
-                              className={`p-3 rounded-lg ${
-                                isCurrentUser
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted"
-                              }`}
-                            >
-                              <p className="text-sm break-words">
-                                {comment.message}
-                              </p>
-                            </div>
-                            <div
-                              className={`flex mt-1 text-xs text-muted-foreground ${
-                                isCurrentUser ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              <span>
-                                {formatDistanceToNow(
-                                  new Date(comment.created_at),
-                                  { addSuffix: true }
-                                )}
-                              </span>
-                              {!isCurrentUser && (
-                                <span className="ml-2">
-                                  {getUserName(comment.user)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {isCurrentUser && (
-                            <Avatar className="h-7 w-7 mt-1 flex-shrink-0">
-                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                {getUserInitials(comment.user)}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      {t("tasks.noMessages") ||
-                        "No messages yet. Start the conversation!"}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Fixed message input form at the bottom */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-background border-t shadow-md rounded-b-lg">
-              <form onSubmit={handleSubmitComment} className="flex gap-2">
-                <Input
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder={t("tasks.typeMessage") || "Type your message..."}
-                  disabled={submitting}
-                  className="flex-1"
-                  autoComplete="off"
-                />
-                <Button
-                  type="submit"
-                  disabled={submitting || !newComment.trim()}
-                  size="sm"
-                >
-                  {submitting ? (
-                    <span className="flex items-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      {t("tasks.sending") || "Sending"}
-                    </span>
-                  ) : (
-                    t("tasks.send") || "Send"
-                  )}
-                </Button>
-              </form>
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );

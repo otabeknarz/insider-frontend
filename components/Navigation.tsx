@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/language-provider";
 import { Home, User, Menu, X, UserPlus, CheckSquare } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Image from "next/image";
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -105,7 +106,8 @@ export default function Navigation() {
         }`}
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-center h-16 border-b border-border">
+          <div className="flex items-center gap-2 justify-start h-16 border-b border-border px-6">
+            <Image src="/favicon.ico" alt="Logo" width={28} height={28} />
             <h1 className="text-xl font-bold">{t("app.title") || "Insider"}</h1>
           </div>
 
