@@ -26,7 +26,6 @@ import {
 import { TaskSection } from "@/components/tasks/TaskSection";
 
 // Import our new components
-import { TaskColumn } from "@/components/tasks/TaskColumn";
 import { TaskDrawer } from "@/components/tasks/TaskDrawer";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { useRouter, useSearchParams } from "next/navigation";
