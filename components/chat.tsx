@@ -68,7 +68,7 @@ export interface ChatProps {
   inputValue: string
   onInputChange: (value: string) => void
   submitting: boolean
-  chatContainerRef: RefObject<HTMLDivElement | null>
+  chatContainerRef: RefObject<HTMLDivElement>
   emptyMessage: string
   getUserInitials: (userId: number | string) => string
   getUserName: (userId: number | string) => string

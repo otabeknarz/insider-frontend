@@ -36,7 +36,7 @@ export default function TaskChatPage() {
   const [submitting, setSubmitting] = useState(false);
   
   // Reference to chat container for auto-scrolling
-  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch task details
   async function fetchTaskWithComments() {
