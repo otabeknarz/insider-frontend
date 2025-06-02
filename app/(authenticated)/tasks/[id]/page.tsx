@@ -12,11 +12,15 @@ import { TaskStatusBackend, TaskPriorityBackend } from "@/lib/types";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Pencil, ArrowLeft, ArrowRight, MessageCircle } from "lucide-react";
+import { Pencil, ArrowLeft, ArrowRight, MessageCircle, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 
 // Task and Comment interfaces
@@ -66,7 +70,12 @@ export default function TaskDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
+  
+  // State for assigned users drawer/dialog
+  const [showAssignedUsers, setShowAssignedUsers] = useState(false);
+  
+  // Check if the device is desktop
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
 
 
@@ -290,21 +299,39 @@ export default function TaskDetailPage() {
                         <h3 className="text-sm font-medium text-muted-foreground mb-1">
                           {t("tasks.assignedTo") || "Assigned To"}
                         </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {task.assigned_users.length > 0 ? (
-                            task.assigned_users.map((user) => (
-                              <div
-                                key={user.id}
-                                className="flex items-center gap-2 bg-muted p-1 px-2 rounded-md"
-                              >
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm">{`${user.first_name} ${user.last_name}`}</span>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {task?.assigned_users && task.assigned_users.length > 0 ? (
+                            <>
+                              <div className="flex flex-wrap gap-2">
+                                {task.assigned_users.slice(0, 3).map((user) => (
+                                  <div
+                                    key={user.id}
+                                    className="flex items-center gap-2 bg-muted p-1 px-2 rounded-md"
+                                  >
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarFallback className="text-xs">
+                                        {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm">{`${user.first_name} ${user.last_name}`}</span>
+                                  </div>
+                                ))}
+                                {task.assigned_users.length > 3 && (
+                                  <div className="flex items-center gap-2 bg-muted p-1 px-2 rounded-md">
+                                    <span className="text-sm">+{task.assigned_users.length - 3} more</span>
+                                  </div>
+                                )}
                               </div>
-                            ))
+                              <Button 
+                                variant="outline"
+                                size="sm" 
+                                className="mt-2"
+                                onClick={() => setShowAssignedUsers(true)}
+                              >
+                                <Users className="h-4 w-4 mr-2" />
+                                {t("tasks.viewAllAssigned") || "View All Assigned Users"}
+                              </Button>
+                            </>
                           ) : (
                             <p className="text-muted-foreground">
                               {t("tasks.noUsersAssigned") ||
@@ -348,6 +375,107 @@ export default function TaskDetailPage() {
         </TabsContent>
 
       </Tabs>
+    
+      {/* Drawer for mobile devices */}
+      {!isDesktop && task && (
+        <Drawer open={showAssignedUsers} onOpenChange={setShowAssignedUsers}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>{t("tasks.assignedUsers") || "Assigned Users"}</DrawerTitle>
+              <DrawerDescription>
+                {t("tasks.assignedUsersDescription") || "Users assigned to this task"}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 py-2">
+              <ScrollArea className="h-[50vh]">
+                <div className="space-y-4">
+                  {task && task.assigned_users && task.assigned_users.length > 0 ? (
+                    task.assigned_users.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-3 p-3 border-b border-border/50 last:border-0"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback>
+                            {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{`${user.first_name} ${user.last_name}`}</p>
+                          <p className="text-sm text-muted-foreground">{user.username}</p>
+                          {user.position && (
+                            <p className="text-xs text-muted-foreground mt-1">{user.position.name}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center py-4 text-muted-foreground">
+                      {t("tasks.noUsersAssigned") || "No users assigned to this task"}
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <Button variant="outline">{t("common.close") || "Close"}</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      {/* Dialog for desktop */}
+      {isDesktop && task && (
+        <Dialog open={showAssignedUsers} onOpenChange={setShowAssignedUsers}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("tasks.assignedUsers") || "Assigned Users"}</DialogTitle>
+              <DialogDescription>
+                {t("tasks.assignedUsersDescription") || "Users assigned to this task"}
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="h-[50vh] mt-4">
+              <div className="space-y-4">
+                {task && task.assigned_users && task.assigned_users.length > 0 ? (
+                  task.assigned_users.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center gap-3 p-3 border-b border-border/50 last:border-0"
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>
+                          {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{`${user.first_name} ${user.last_name}`}</p>
+                        <p className="text-sm text-muted-foreground">{user.username}</p>
+                        {user.position && (
+                          <p className="text-xs text-muted-foreground mt-1">{user.position.name}</p>
+                        )}
+                        {user.region && (
+                          <p className="text-xs text-muted-foreground">{user.region.name}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-4 text-muted-foreground">
+                    {t("tasks.noUsersAssigned") || "No users assigned to this task"}
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setShowAssignedUsers(false)}>
+                {t("common.close") || "Close"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

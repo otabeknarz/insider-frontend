@@ -24,6 +24,9 @@ interface LanguageContextType {
 // Translation dictionaries
 const translations = {
   en: {
+    // Common
+    "common.close": "Close",
+    
     // Auth
     "login.title": "Sign In",
     "login.username": "Username",
@@ -96,7 +99,8 @@ const translations = {
     "tasks.priorityLow": "Low",
     "tasks.priorityMedium": "Medium",
     "tasks.priorityHigh": "High",
-    "tasks.assignee": "Assignee",
+    "tasks.assignedUser": "assigned user",
+    "tasks.assignedUsers": "Assigned Users",
     "tasks.selectAssignee": "Select an assignee",
     "tasks.selectAssignedUsers": "Select users",
     "tasks.loadingUsers": "Loading users...",
@@ -133,6 +137,11 @@ const translations = {
     "tasks.loadError": "Failed to load tasks. Please try again later.",
     "tasks.saveError": "Failed to save task. Please try again.",
     "tasks.updateError": "Failed to update task. Please try again.",
+    "tasks.assignedToMe": "Assigned to me",
+    "tasks.createdByMe": "Created by me",
+    "tasks.viewAssignedPeople": "View Assigned People",
+    "tasks.goToTask": "Go to Task",
+    "tasks.deleteTask": "Delete Task",
     "chat.taskChat": "Task Chat",
     "chat.message": "message",
     "chat.messages": "messages",
@@ -252,6 +261,9 @@ const translations = {
     "users.district": "District"
   },
   uz: {
+    // Common
+    "common.close": "Yopish",
+    
     // Auth
     "login.title": "Kirish",
     "login.username": "Foydalanuvchi nomi",
@@ -325,6 +337,7 @@ const translations = {
     "tasks.priorityMedium": "O'rta",
     "tasks.priorityHigh": "Yuqori",
     "tasks.assignee": "Mas'ul",
+    "tasks.assignedUsers": "Tayinlangan foydalanuvchilar",
     "tasks.selectAssignee": "Mas'ulni tanlang",
     "tasks.selectAssignedUsers": "Foydalanuvchilarni tanlang",
     "tasks.loadingUsers": "Foydalanuvchilar yuklanmoqda...",
@@ -359,6 +372,11 @@ const translations = {
     "tasks.backToTasks": "Vazifalarga qaytish",
     "tasks.noTeam": "Jamoasiz",
     "tasks.loadError": "Vazifalarni yuklashda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+    "tasks.assignedToMe": "Menga tayinlangan",
+    "tasks.createdByMe": "Men yaratgan",
+    "tasks.viewAssignedPeople": "Tayinlangan shaxslarni ko'rish",
+    "tasks.goToTask": "Vazifaga o'tish",
+    "tasks.deleteTask": "Vazifani o'chirish",
     
     // Chat
     "chat.taskChat": "Vazifa Suhbati",
