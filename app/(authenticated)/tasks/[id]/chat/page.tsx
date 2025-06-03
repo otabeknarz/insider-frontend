@@ -10,6 +10,12 @@ import { ArrowLeft, MessageCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Comment, Task, User } from "@/lib/types";
 
 // Extended Comment interface that includes the full user object instead of just user ID
@@ -295,13 +301,25 @@ export default function TaskChatPage() {
                         >
                           {message.message}
                         </div>
-                        <span className="text-xs text-muted-foreground self-end">
-                          {new Date(message.created_at).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}
-                        </span>
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs text-muted-foreground self-end cursor-default">
+                                {new Date(message.created_at).toLocaleTimeString('en-US', {
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                  hour12: true
+                                })}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="text-xs">
+                              {new Date(message.created_at).toLocaleString('en-US', {
+                                timeStyle: 'medium',
+                                hour12: true
+                              })}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
                   </div>

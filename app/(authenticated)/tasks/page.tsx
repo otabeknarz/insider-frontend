@@ -29,6 +29,7 @@ import { TaskSection } from "@/components/tasks/TaskSection";
 import { TaskDrawer } from "@/components/tasks/TaskDrawer";
 import { TaskDialog } from "@/components/tasks/TaskDialog";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
 // Initial empty tasks array
 const initialTasks: BackendTask[] = [];
@@ -52,6 +53,8 @@ export default function TasksPage() {
     t("tasks.addTask") === "tasks.addTask" ? "Add Task" : t("tasks.addTask");
   const tasksTitle =
     t("tasks.title") === "tasks.title" ? "Tasks" : t("tasks.title");
+
+  const { user } = useAuth();
 
   const [tasksToMe, setTasksToMe] = useState<BackendTask[]>(initialTasks);
   const [tasksByMe, setTasksByMe] = useState<BackendTask[]>(initialTasks);
@@ -410,10 +413,7 @@ export default function TasksPage() {
 
       // Update UI after successful deletion
       // Update the appropriate task list based on who created the task
-      const isTaskByMe =
-        typeof taskToDelete.created_by === "string"
-          ? taskToDelete.created_by === "1"
-          : taskToDelete.created_by.id.toString() === "1";
+      const isTaskByMe = taskToDelete.created_by.toString() === user?.id.toString();
 
       if (isTaskByMe) {
         setTasksByMe((prevTasks) =>
@@ -422,8 +422,8 @@ export default function TasksPage() {
       }
 
       // Also update tasksToMe if the task was assigned to the current user
-      const isTaskToMe = taskToDelete.assigned_users.some((user) =>
-        typeof user === "string" ? user === "1" : user.id.toString() === "1"
+      const isTaskToMe = taskToDelete.assigned_users.some((u) =>
+        u.toString() === user?.id.toString()
       );
 
       if (isTaskToMe) {
@@ -502,7 +502,9 @@ export default function TasksPage() {
     }
   };
 
-  const [activeTab, setActiveTab] = useState("to-me");
+  // Get active tab from URL or default to "to-me"
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam === "by-me" ? "by-me" : "to-me");
 
   // We now get tasks from separate API endpoints, so no need to filter
 
@@ -548,7 +550,11 @@ export default function TasksPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="to-me" onValueChange={setActiveTab}>
+      <Tabs defaultValue={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        // Update URL when tab changes without full page reload
+        router.push(`/tasks?tab=${value}`, { scroll: false });
+      }}>
         <TabsList className="mb-4">
           <TabsTrigger value="to-me">To Me</TabsTrigger>
           <TabsTrigger value="by-me">By Me</TabsTrigger>
