@@ -18,7 +18,7 @@ interface LanguageProviderProps {
 interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, number | string>) => string;
 }
 
 // Translation dictionaries
@@ -26,6 +26,7 @@ const translations = {
   en: {
     // Common
     "common.close": "Close",
+    "common.home": "Home",
     
     // Auth
     "login.title": "Sign In",
@@ -252,6 +253,24 @@ const translations = {
     "teams.memberRemoveError": "Failed to remove member.",
     "teams.adminAddError": "Failed to add admin.",
     "teams.adminRemoveError": "Failed to remove admin.",
+    "teams.removeUser": "Remove User",
+    "teams.removeUserConfirmation": "Are you sure you want to remove this user from the team?",
+    "teams.member": "Member",
+    "teams.admin": "Admin",
+    "teams.noAdmins": "No admins yet",
+    "teams.noMembers": "No members yet",
+    "teams.description": "Description",
+    "teams.teamInfo": "Team Information",
+    "teams.name": "Team Name",
+    "teams.tasks": "Tasks",
+    "teams.teamTasks": "Team Tasks",
+    "teams.taskBoardDescription": "Manage and organize team tasks",
+    "teams.viewTaskBoard": "View Task Board",
+    "teams.goToTaskBoard": "Go to Task Board",
+    "common.remove": "Remove",
+    "common.removing": "Removing...",
+    "common.cancel": "Cancel",
+    "common.saving": "Saving...",
     "users.title": "Users",
     "users.searchPlaceholder": "Search users...",
     "users.noUsers": "No users found.",
@@ -263,6 +282,7 @@ const translations = {
   uz: {
     // Common
     "common.close": "Yopish",
+    "common.home": "Bosh sahifa",
     
     // Auth
     "login.title": "Kirish",
@@ -491,6 +511,24 @@ const translations = {
     "teams.memberRemoveError": "A'zoni olib tashlashda xatolik yuz berdi.",
     "teams.adminAddError": "Admin qo'shishda xatolik yuz berdi.",
     "teams.adminRemoveError": "Adminni olib tashlashda xatolik yuz berdi.",
+    "teams.removeUser": "Foydalanuvchini olib tashlash",
+    "teams.removeUserConfirmation": "Haqiqatan ham bu foydalanuvchini jamoadan olib tashlashni xohlaysizmi?",
+    "teams.member": "A'zo",
+    "teams.admin": "Admin",
+    "teams.noAdmins": "Hali adminlar yo'q",
+    "teams.noMembers": "Hali a'zolar yo'q",
+    "teams.description": "Tavsif",
+    "teams.teamInfo": "Jamoa ma'lumotlari",
+    "teams.name": "Jamoa nomi",
+    "teams.tasks": "Vazifalar",
+    "teams.teamTasks": "Jamoa vazifalari",
+    "teams.taskBoardDescription": "Jamoa vazifalarini boshqarish va tartibga solish",
+    "teams.viewTaskBoard": "Vazifalar Doskasini Ko'rish",
+    "teams.goToTaskBoard": "Vazifalar Doskasiga O'tish",
+    "common.remove": "Olib tashlash",
+    "common.removing": "Olib tashlanmoqda...",
+    "common.cancel": "Bekor qilish",
+    "common.saving": "Saqlanmoqda...",
     "users.title": "Foydalanuvchilar",
     "users.searchPlaceholder": "Foydalanuvchilarni qidirish...",
     "users.noUsers": "Foydalanuvchilar topilmadi.",

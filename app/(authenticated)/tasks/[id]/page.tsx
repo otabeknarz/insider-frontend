@@ -12,7 +12,15 @@ import { TaskStatusBackend, TaskPriorityBackend } from "@/lib/types";
 // UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Pencil, ArrowLeft, ArrowRight, MessageCircle, Users } from "lucide-react";
+import { Pencil, ArrowLeft, ArrowRight, MessageCircle, Users, Home, ClipboardList } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from "@/components/ui/breadcrumb";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +66,43 @@ interface Comment {
   task: string | number;
 }
 
-interface TaskDetailResponse extends Task {}
+// Define Team interface for the API response
+interface TeamDetail {
+  id: string;
+  owner: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    position: {
+      id: string;
+      name: string;
+    } | null;
+    region: {
+      id: number;
+      name: string;
+    } | null;
+    district: {
+      id: number;
+      name: string;
+      region: number;
+    } | null;
+    created_at: string;
+    updated_at: string;
+    date_joined: string;
+  };
+  created_at: string;
+  updated_at: string;
+  name: string;
+  description: string | null;
+  admins: string[];
+  members: string[];
+}
+
+// Extend Task interface but override the team property for the detail view
+interface TaskDetailResponse extends Omit<Task, 'team'> {
+  team: TeamDetail | null;
+}
 
 export default function TaskDetailPage() {
   const { id } = useParams();
@@ -186,24 +230,44 @@ export default function TaskDetailPage() {
           <h2 className="text-2xl font-bold text-red-500 mb-4">
             {error || "Task not found"}
           </h2>
-          <Link href="/tasks">
-            <Button>{t("tasks.backToTasks") || "Back to Tasks"}</Button>
-          </Link>
+          <Button asChild>
+            <Link href="/tasks" className="flex items-center gap-2">
+              {t("tasks.backToTasks") || "Back to Tasks"}
+            </Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container py-6 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto py-6 px-4 md:px-6">
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink className="flex items-center gap-1" href="/">
+              <Home className="h-4 w-4 mr-1" />
+              {t("common.home")}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink className="flex items-center gap-1" href="/tasks">
+              <ClipboardList className="h-4 w-4 mr-1" />
+              {t("tasks.title")}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>
+              {task?.name || t("tasks.taskDetails")}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-6 gap-2">
         <div>
-          <Link
-            href="/tasks"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            &larr; Back to Tasks
-          </Link>
           <h1 className="text-3xl font-bold mt-2">{task.name}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -340,6 +404,29 @@ export default function TaskDetailPage() {
                           )}
                         </div>
                       </div>
+
+                      {task.team && (
+                        <div>
+                          <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                            {t("tasks.team") || "Team"}
+                          </h3>
+                          <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
+                            <div className="flex-1">
+                              <p className="font-medium">{task.team.name}</p>
+                              {task.team.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                  {task.team.description}
+                                </p>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/teams/${task.team.id}`}>
+                                <ArrowRight className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
                       {task.description && (
                         <div>

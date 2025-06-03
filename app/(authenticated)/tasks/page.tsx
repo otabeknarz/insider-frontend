@@ -5,6 +5,14 @@ import { useLanguage } from "@/lib/language-provider";
 import ApiService from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from "@/components/ui/breadcrumb";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -14,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Home, ClipboardList } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Task as BackendTask,
@@ -541,7 +549,24 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
+    <div className="container py-6 space-y-6">
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink className="flex items-center gap-1" href="/">
+              <Home className="h-4 w-4 mr-1" />
+              {t("common.home") || "Home"}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>
+              <ClipboardList className="h-4 w-4 mr-1 inline" />
+              {t("tasks.title") || "Tasks"}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">{tasksTitle}</h1>
         <Button onClick={handleAddTask}>

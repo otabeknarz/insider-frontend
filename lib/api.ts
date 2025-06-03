@@ -379,6 +379,10 @@ class ApiService {
     return this.getWithPagination<T>("/api/core/tasks/", getAll);
   }
 
+  static getTeamTasks<T = any>(teamId: string, getAll: boolean = false): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+    return this.getWithPagination<T>(`/api/core/teams/${teamId}/tasks/`, getAll);
+  }
+
   static getTask(id: string): Promise<AxiosResponse> {
     return dedupedRequest({ method: "get", url: `/api/core/tasks/${id}/` });
   }
@@ -509,6 +513,107 @@ class ApiService {
     return dedupedRequest({
       method: "get",
       url: `/api/core/teams/${id}/`,
+    });
+  }
+
+  /**
+   * Update team details
+   * @param id Team ID
+   * @param data Team data including name and description
+   * @returns Promise with updated team data
+   */
+  static updateTeam(id: string, data: {
+    name: string;
+    description: string;
+  }): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${id}/`,
+      data,
+    });
+  }
+  
+  /**
+   * Add a member to a team
+   * @param teamId Team ID
+   * @param userIds Array of User IDs to add as members
+   * @returns Promise with response
+   */
+  static addTeamMember(teamId: string, userIds: string[]): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${teamId}/`,
+      data: { members: userIds },
+    });
+  }
+
+  /**
+   * Remove a member from a team
+   * @param teamId Team ID
+   * @param userId User ID to remove from the team
+   * @returns Promise with response
+   */
+  static removeTeamMember(teamId: string, userId: string): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${teamId}/`,
+      data: { members_remove: [userId] },
+    });
+  }
+
+  /**
+   * Add an admin to a team
+   * @param teamId Team ID
+   * @param userIds User IDs to add as an admin
+   * @returns Promise with response
+   */
+  static addTeamAdmin(teamId: string, userIds: string[]): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${teamId}/`,
+      data: { admins: userIds },
+    });
+  }
+  
+  /**
+   * Remove multiple members from a team
+   * @param teamId Team ID
+   * @param userIds User IDs to remove
+   * @returns Promise with response
+   */
+  static removeTeamMembers(teamId: string, userIds: string[]): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${teamId}/`,
+      data: { members_remove: userIds },
+    });
+  }
+
+  /**
+   * Remove multiple admins from a team
+   * @param teamId Team ID
+   * @param userIds User IDs to remove
+   * @returns Promise with response
+   */
+  static removeTeamAdmins(teamId: string, userIds: string[]): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${teamId}/`,
+      data: { admins_remove: userIds },
+    });
+  }
+
+  /**
+   * Remove an admin from a team
+   * @param teamId Team ID
+   * @param userIds User IDs to remove
+   * @returns Promise with response
+   */
+  static removeTeamAdmin(teamId: string, userIds: string[]): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/teams/${teamId}/`,
+      data: { admins_remove: userIds },
     });
   }
 
