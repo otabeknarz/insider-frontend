@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Insider - Task Management",
-  description: "Internal task management application for Ibrat Debate Team",
+  description: "Internal task management application",
 };
 
 export default function RootLayout({
