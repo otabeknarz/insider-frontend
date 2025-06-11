@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import ApiService from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -516,6 +517,27 @@ export default function TasksPage() {
 
   // We now get tasks from separate API endpoints, so no need to filter
 
+  // Handle archiving a task
+  const handleArchiveTask = async (task: BackendTask, event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    try {
+      await ApiService.archiveTask(task.id.toString(), true);
+      
+      // Update the local state to remove the archived task
+      setTasksByMe(prev => prev.filter(t => t.id !== task.id));
+      
+      // Show success message
+      toast.success(t("tasks.archivedSuccess") || "Task archived successfully");
+    } catch (error) {
+      console.error("Error archiving task:", error);
+      toast.error(t("tasks.archiveError") || "Failed to archive task");
+    }
+  };
+
   // Handle priority change for mobile devices
   const handlePriorityChange = async (
     task: BackendTask,
@@ -615,6 +637,7 @@ export default function TasksPage() {
             onDrop={handleDrop}
             isTasksCreatedByMe={true} // These tasks are created by me
             onPriorityChange={handlePriorityChange}
+            onArchiveTask={handleArchiveTask}
             title={t("tasks.createdByMe") || "Tasks Created by Me"}
           />
         </TabsContent>

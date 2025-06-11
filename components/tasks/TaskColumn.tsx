@@ -22,6 +22,7 @@ interface TaskColumnProps {
   onDrop: (status: number) => void;
   isTasksCreatedByMe?: boolean; // Indicates if tasks in this column were created by the current user
   onPriorityChange?: (task: Task, newPriority: number) => void; // For mobile priority changes
+  onArchive?: (task: Task, event?: React.MouseEvent) => void;
 }
 
 export function TaskColumn({
@@ -35,6 +36,7 @@ export function TaskColumn({
   onDrop,
   isTasksCreatedByMe = false,
   onPriorityChange,
+  onArchive,
 }: TaskColumnProps) {
   const { t } = useLanguage();
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -118,6 +120,7 @@ export function TaskColumn({
             onDragStart={onDragStart}
             isCreatedByMe={isTasksCreatedByMe}
             onPriorityChange={onPriorityChange}
+            onArchive={onArchive}
           />
         ))}
       </div>

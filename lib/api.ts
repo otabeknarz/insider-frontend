@@ -356,21 +356,44 @@ class ApiService {
 
   // Tasks
   static getTasks<T = any>(
+    filters?: Record<string, any> | boolean,
     getAll: boolean = false
   ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/tasks/", getAll);
+    // Handle case where first argument is a boolean (backwards compatibility)
+    if (typeof filters === 'boolean') {
+      getAll = filters;
+      filters = undefined;
+    }
+    
+    // Build URL with query parameters if filters are provided
+    let url = "/api/core/tasks/";
+    if (filters && typeof filters === 'object') {
+      const queryParams = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+      
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    
+    return this.getWithPagination<T>(url, getAll);
   }
 
   static getTasksToMe<T = any>(
     getAll: boolean = false
   ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/tasks/to-me/", getAll);
+    return this.getWithPagination<T>("/api/core/tasks/to-me/?is_archived=false", getAll);
   }
 
   static getTasksByMe<T = any>(
     getAll: boolean = false
   ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/tasks/by-me/", getAll);
+    return this.getWithPagination<T>("/api/core/tasks/by-me/?is_archived=false", getAll);
   }
 
   static getUserTasks<T = any>(
@@ -614,6 +637,20 @@ class ApiService {
       method: "patch",
       url: `/api/core/teams/${teamId}/`,
       data: { admins_remove: userIds },
+    });
+  }
+
+  /**
+   * Archive or unarchive a task
+   * @param taskId Task ID
+   * @param isArchived Whether to archive (true) or unarchive (false) the task
+   * @returns Promise with response
+   */
+  static archiveTask(taskId: string, isArchived: boolean): Promise<AxiosResponse> {
+    return dedupedRequest({
+      method: "patch",
+      url: `/api/core/tasks/${taskId}/`,
+      data: { is_archived: isArchived },
     });
   }
 

@@ -17,6 +17,7 @@ interface TaskSectionProps {
   onDrop: (status: number) => void;
   isTasksCreatedByMe?: boolean; // Indicates if tasks in this section were created by the current user
   onPriorityChange?: (task: Task, newPriority: number) => void; // For mobile priority changes
+  onArchiveTask?: (task: Task, event?: React.MouseEvent) => void; // For archiving tasks
   title?: string; // Optional title for the section
 }
 
@@ -32,6 +33,7 @@ export function TaskSection({
   onDrop,
   isTasksCreatedByMe = false,
   onPriorityChange,
+  onArchiveTask,
   title,
 }: TaskSectionProps) {
   const { t } = useLanguage();
@@ -145,6 +147,7 @@ export function TaskSection({
           onDrop={onDrop}
           isTasksCreatedByMe={isTasksCreatedByMe}
           onPriorityChange={onPriorityChange}
+          onArchive={onArchiveTask}
         />
         <TaskColumn
           title={t("tasks.received") || "RECEIVED"}
@@ -157,6 +160,7 @@ export function TaskSection({
           onDrop={onDrop}
           isTasksCreatedByMe={isTasksCreatedByMe}
           onPriorityChange={onPriorityChange}
+          onArchive={onArchiveTask}
         />
         <TaskColumn
           title={t("tasks.inProcess") || "IN PROCESS"}
@@ -169,6 +173,7 @@ export function TaskSection({
           onDrop={onDrop}
           isTasksCreatedByMe={isTasksCreatedByMe}
           onPriorityChange={onPriorityChange}
+          onArchive={onArchiveTask}
         />
         <TaskColumn
           title={t("tasks.completed") || "COMPLETED"}
@@ -181,6 +186,7 @@ export function TaskSection({
           onDrop={onDrop}
           isTasksCreatedByMe={isTasksCreatedByMe}
           onPriorityChange={onPriorityChange}
+          onArchive={onArchiveTask}
         />
       </div>
     </>

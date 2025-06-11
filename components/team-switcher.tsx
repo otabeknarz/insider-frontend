@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown, Plus } from "lucide-react"
+import { ChevronDown, Plus, User, Users } from "lucide-react"
 
 import {
   DropdownMenu,
@@ -18,18 +18,27 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-export function TeamSwitcher({
-  teams,
-}: {
+// Define our view types including Personal and All
+type ViewType = 'personal' | 'all' | 'team';
+
+interface TeamSwitcherProps {
   teams: {
     name: string
     logo: React.ElementType
     plan: string
   }[]
-}) {
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+}
 
-  if (!activeTeam) {
+export function TeamSwitcher({ teams }: TeamSwitcherProps) {
+  // Add Personal and All as special options
+  const [activeView, setActiveView] = React.useState<{
+    type: ViewType;
+    name: string;
+    logo: React.ElementType;
+    plan?: string;
+  }>({ type: 'personal', name: 'Personal', logo: User })
+
+  if (!activeView) {
     return null
   }
 
@@ -40,9 +49,9 @@ export function TeamSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="w-fit px-1.5">
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-5 items-center justify-center rounded-md">
-                <activeTeam.logo className="size-3" />
+                <activeView.logo className="size-3" />
               </div>
-              <span className="truncate font-medium">{activeTeam.name}</span>
+              <span className="truncate font-medium">{activeView.name}</span>
               <ChevronDown className="opacity-50" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -53,12 +62,43 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
+              Views
+            </DropdownMenuLabel>
+            {/* Personal option */}
+            <DropdownMenuItem
+              key="personal"
+              onClick={() => setActiveView({ type: 'personal', name: 'Personal', logo: User })}
+              className="gap-2 p-2"
+            >
+              <div className="flex size-6 items-center justify-center rounded-xs border">
+                <User className="size-4 shrink-0" />
+              </div>
+              Personal
+              <DropdownMenuShortcut>⌘P</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            
+            {/* All option */}
+            <DropdownMenuItem
+              key="all"
+              onClick={() => setActiveView({ type: 'all', name: 'All', logo: Users })}
+              className="gap-2 p-2"
+            >
+              <div className="flex size-6 items-center justify-center rounded-xs border">
+                <Users className="size-4 shrink-0" />
+              </div>
+              All
+              <DropdownMenuShortcut>⌘A</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuLabel className="text-muted-foreground text-xs">
               Teams
             </DropdownMenuLabel>
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
-                onClick={() => setActiveTeam(team)}
+                onClick={() => setActiveView({ type: 'team', ...team })}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-xs border">

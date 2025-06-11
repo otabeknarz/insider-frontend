@@ -3,8 +3,11 @@
 import * as React from "react"
 import {
   AudioWaveform,
+  Archive,
   Blocks,
   Calendar,
+  CheckCircle,
+  ClipboardList,
   Command,
   Home,
   Inbox,
@@ -13,6 +16,8 @@ import {
   Settings2,
   Sparkles,
   Trash2,
+  User,
+  Users,
 } from "lucide-react"
 
 import { NavFavorites } from "@/components/nav-favorites"
@@ -59,9 +64,25 @@ const data = {
     },
     {
       title: "Home",
-      url: "#",
+      url: "/",
       icon: Home,
-      isActive: true,
+    },
+    {
+      title: "Tasks",
+      url: "/tasks",
+      icon: ClipboardList,
+      subItems: [
+        {
+          title: "Active",
+          url: "/tasks",
+          icon: CheckCircle,
+        },
+        {
+          title: "Archived",
+          url: "/tasks/archived",
+          icon: Archive,
+        },
+      ],
     },
     {
       title: "Inbox",

@@ -28,6 +28,11 @@ const translations = {
     "common.close": "Close",
     "common.home": "Home",
     
+    // Breadcrumbs
+    "breadcrumb.home": "Home",
+    "breadcrumb.tasks": "Tasks",
+    "breadcrumb.archived": "Archived",
+    
     // Auth
     "login.title": "Sign In",
     "login.username": "Username",
@@ -44,6 +49,8 @@ const translations = {
     // Navigation
     "nav.dashboard": "Dashboard",
     "nav.tasks": "Tasks",
+    "nav.activeTasks": "Active",
+    "nav.archivedTasks": "Archived",
     "nav.profile": "Profile",
     "nav.home": "Home",
     "nav.teams": "Teams",
@@ -83,6 +90,9 @@ const translations = {
     // Tasks
     "tasks.title": "Task Board",
     "tasks.add": "Add Task",
+    "tasks.active": "Active",
+    "tasks.archived": "Archived",
+    "tasks.archivedTasks": "Archived Tasks",
     "tasks.todo": "To Do",
     "tasks.inProgress": "In Progress",
     "tasks.done": "Done",
