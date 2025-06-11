@@ -147,7 +147,7 @@ export default function ArchivedTasksPage() {
       });
 
       // Update local state
-      if (task.created_by?.id === user?.id) {
+      if (task.created_by?.id?.toString() === user?.id?.toString()) {
         setTasksByMe((prev) =>
           prev.map((t) =>
             t.id === task.id ? { ...t, priority: newPriority } : t
