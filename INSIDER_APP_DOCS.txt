@@ -46,3 +46,4 @@
 - TaskBoard - Main task management interface
 - TaskCard - Individual task representation
 - TaskColumn - Column for grouping tasks by status
+- TeamSwitcher - Toggle between teams

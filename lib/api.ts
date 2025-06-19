@@ -4,26 +4,26 @@ import { jwtDecode } from "jwt-decode";
 
 // Define interface for paginated responses
 export interface PaginatedResponse<T> {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
+	count: number;
+	next: string | null;
+	previous: string | null;
+	results: T[];
 }
 
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-    "X-Requested-With": "XMLHttpRequest", // Help reduce OPTIONS requests
-  },
+	baseURL: API_BASE_URL,
+	timeout: 10000,
+	headers: {
+		"Content-Type": "application/json",
+		"X-Requested-With": "XMLHttpRequest", // Help reduce OPTIONS requests
+	},
 });
 
 // Request cache to prevent duplicate requests
 const requestCache: Record<
-  string,
-  { promise: Promise<any>; timestamp: number }
+	string,
+	{ promise: Promise<any>; timestamp: number }
 > = {};
 
 // Cache expiry time in milliseconds
@@ -31,16 +31,16 @@ const CACHE_EXPIRY = 2000; // 2 seconds
 
 // Function to check if token is expired
 const isTokenExpired = (token: string): boolean => {
-  try {
-    const decoded: any = jwtDecode(token);
-    const currentTime = Date.now() / 1000;
+	try {
+		const decoded: any = jwtDecode(token);
+		const currentTime = Date.now() / 1000;
 
-    // Check if token has expiration and if it's expired
-    return decoded.exp ? decoded.exp < currentTime : false;
-  } catch (error) {
-    console.error("Error decoding token:", error);
-    return true; // If we can't decode the token, consider it expired
-  }
+		// Check if token has expiration and if it's expired
+		return decoded.exp ? decoded.exp < currentTime : false;
+	} catch (error) {
+		console.error("Error decoding token:", error);
+		return true; // If we can't decode the token, consider it expired
+	}
 };
 
 // Refresh token promise to prevent multiple simultaneous refresh requests
@@ -48,665 +48,701 @@ let refreshTokenPromise: Promise<string | null> | null = null;
 
 // Function to refresh token with request deduplication
 const refreshAccessToken = async (): Promise<string | null> => {
-  // If there's already a refresh in progress, return that promise instead of making a new request
-  if (refreshTokenPromise) {
-    return refreshTokenPromise;
-  }
+	// If there's already a refresh in progress, return that promise instead of making a new request
+	if (refreshTokenPromise) {
+		return refreshTokenPromise;
+	}
 
-  // Create a new refresh token promise
-  refreshTokenPromise = (async () => {
-    try {
-      const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+	// Create a new refresh token promise
+	refreshTokenPromise = (async () => {
+		try {
+			const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
 
-      if (!refreshToken) {
-        return null;
-      }
+			if (!refreshToken) {
+				return null;
+			}
 
-      // Create a standalone axios instance for refresh requests to avoid interceptors
-      const response = await axios
-        .create({
-          baseURL: API_BASE_URL,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-        })
-        .post(`/api/auth/token/refresh/`, { refresh: refreshToken });
+			// Create a standalone axios instance for refresh requests to avoid interceptors
+			const response = await axios
+				.create({
+					baseURL: API_BASE_URL,
+					headers: {
+						"Content-Type": "application/json",
+						"X-Requested-With": "XMLHttpRequest",
+					},
+				})
+				.post(`/api/auth/token/refresh/`, { refresh: refreshToken });
 
-      if (response.data.access) {
-        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.access);
-        return response.data.access;
-      }
+			if (response.data.access) {
+				localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.access);
+				return response.data.access;
+			}
 
-      return null;
-    } catch (error) {
-      console.error("Error refreshing token:", error);
-      // Clear tokens on refresh failure
-      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      return null;
-    } finally {
-      // Clear the promise so future calls can create a new one
-      setTimeout(() => {
-        refreshTokenPromise = null;
-      }, 1000); // Small delay to prevent rapid consecutive calls
-    }
-  })();
+			return null;
+		} catch (error) {
+			console.error("Error refreshing token:", error);
+			// Clear tokens on refresh failure
+			localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+			localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+			localStorage.removeItem(STORAGE_KEYS.USER);
+			return null;
+		} finally {
+			// Clear the promise so future calls can create a new one
+			setTimeout(() => {
+				refreshTokenPromise = null;
+			}, 1000); // Small delay to prevent rapid consecutive calls
+		}
+	})();
 
-  return refreshTokenPromise;
+	return refreshTokenPromise;
 };
 
 // Function to create a request key from config
 const createRequestKey = (method: string, url: string, data?: any): string => {
-  return `${method}:${url}:${data ? JSON.stringify(data) : ""}`;
+	return `${method}:${url}:${data ? JSON.stringify(data) : ""}`;
 };
 
 // Enhanced axios with request deduplication
 const dedupedRequest = async <T>(
-  config: AxiosRequestConfig
+	config: AxiosRequestConfig
 ): Promise<AxiosResponse<T>> => {
-  // Don't cache certain types of requests
-  const skipCache =
-    config.method?.toLowerCase() === "put" ||
-    config.method?.toLowerCase() === "delete" ||
-    config.method?.toLowerCase() === "patch";
+	// Don't cache certain types of requests
+	const skipCache =
+		config.method?.toLowerCase() === "put" ||
+		config.method?.toLowerCase() === "delete" ||
+		config.method?.toLowerCase() === "patch";
 
-  if (skipCache) {
-    return axiosInstance(config);
-  }
+	if (skipCache) {
+		return axiosInstance(config);
+	}
 
-  const key = createRequestKey(
-    config.method || "get",
-    config.url || "",
-    config.data
-  );
+	const key = createRequestKey(
+		config.method || "get",
+		config.url || "",
+		config.data
+	);
 
-  // Check if we have a cached request that's not expired
-  const now = Date.now();
-  const cachedRequest = requestCache[key];
+	// Check if we have a cached request that's not expired
+	const now = Date.now();
+	const cachedRequest = requestCache[key];
 
-  if (cachedRequest && now - cachedRequest.timestamp < CACHE_EXPIRY) {
-    return cachedRequest.promise;
-  }
+	if (cachedRequest && now - cachedRequest.timestamp < CACHE_EXPIRY) {
+		return cachedRequest.promise;
+	}
 
-  // Create a new request and cache it
-  const promise = axiosInstance(config);
-  requestCache[key] = {
-    promise,
-    timestamp: now,
-  };
+	// Create a new request and cache it
+	const promise = axiosInstance(config);
+	requestCache[key] = {
+		promise,
+		timestamp: now,
+	};
 
-  // Clean up cache after request completes
-  promise.finally(() => {
-    setTimeout(() => {
-      delete requestCache[key];
-    }, CACHE_EXPIRY);
-  });
+	// Clean up cache after request completes
+	promise.finally(() => {
+		setTimeout(() => {
+			delete requestCache[key];
+		}, CACHE_EXPIRY);
+	});
 
-  return promise;
+	return promise;
 };
 
 // Cache for token expiration checks to reduce redundant checks
 const tokenExpiryCache = {
-  token: "",
-  expiryTime: 0,
-  isExpired: false,
+	token: "",
+	expiryTime: 0,
+	isExpired: false,
 };
 
 // Request interceptor for adding token and handling token expiration
 axiosInstance.interceptors.request.use(
-  async (config) => {
-    // Skip token handling for refresh token requests to prevent circular dependencies
-    const isRefreshRequest = config.url?.includes("/api/auth/token/refresh/");
-    if (isRefreshRequest) {
-      return config;
-    }
+	async (config) => {
+		// Skip token handling for refresh token requests to prevent circular dependencies
+		const isRefreshRequest = config.url?.includes("/api/auth/token/refresh/");
+		if (isRefreshRequest) {
+			return config;
+		}
 
-    // Get token from localStorage
-    let token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+		// Get token from localStorage
+		let token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
-    // If token exists, check if it's expired
-    if (token) {
-      // Use cached expiry check if it's the same token
-      let isExpired = false;
-      if (
-        token === tokenExpiryCache.token &&
-        Date.now() / 1000 < tokenExpiryCache.expiryTime
-      ) {
-        isExpired = tokenExpiryCache.isExpired;
-      } else {
-        isExpired = isTokenExpired(token);
+		// If token exists, check if it's expired
+		if (token) {
+			// Use cached expiry check if it's the same token
+			let isExpired = false;
+			if (
+				token === tokenExpiryCache.token &&
+				Date.now() / 1000 < tokenExpiryCache.expiryTime
+			) {
+				isExpired = tokenExpiryCache.isExpired;
+			} else {
+				isExpired = isTokenExpired(token);
 
-        // Update cache
-        try {
-          const decoded: any = jwtDecode(token);
-          tokenExpiryCache.token = token;
-          tokenExpiryCache.expiryTime = decoded.exp || 0;
-          tokenExpiryCache.isExpired = isExpired;
-        } catch (e) {
-          // If decoding fails, don't cache
-        }
-      }
+				// Update cache
+				try {
+					const decoded: any = jwtDecode(token);
+					tokenExpiryCache.token = token;
+					tokenExpiryCache.expiryTime = decoded.exp || 0;
+					tokenExpiryCache.isExpired = isExpired;
+				} catch (e) {
+					// If decoding fails, don't cache
+				}
+			}
 
-      if (isExpired) {
-        console.log("Access token expired, attempting to refresh...");
-        // Token is expired, try to refresh
-        const newToken = await refreshAccessToken();
+			if (isExpired) {
+				console.log("Access token expired, attempting to refresh...");
+				// Token is expired, try to refresh
+				const newToken = await refreshAccessToken();
 
-        if (newToken) {
-          token = newToken;
-        } else {
-          // If refresh failed and we're not already on the login page, redirect
-          if (
-            typeof window !== "undefined" &&
-            !window.location.pathname.includes("/login")
-          ) {
-            window.location.href = "/login";
-          }
-          return Promise.reject(new Error("Session expired"));
-        }
-      }
+				if (newToken) {
+					token = newToken;
+				} else {
+					// If refresh failed and we're not already on the login page, redirect
+					if (
+						typeof window !== "undefined" &&
+						!window.location.pathname.includes("/login")
+					) {
+						window.location.href = "/login";
+					}
+					return Promise.reject(new Error("Session expired"));
+				}
+			}
 
-      // Add token to headers
-      if (config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-        // Add headers that might help reduce OPTIONS requests
-        config.headers["X-Requested-With"] = "XMLHttpRequest";
-      }
-    }
+			// Add token to headers
+			if (config.headers) {
+				config.headers.Authorization = `Bearer ${token}`;
+				// Add headers that might help reduce OPTIONS requests
+				config.headers["X-Requested-With"] = "XMLHttpRequest";
+			}
+		}
 
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
+		return config;
+	},
+	(error) => {
+		return Promise.reject(error);
+	}
 );
 
 // Response interceptor for handling token refresh
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+	(response) => response,
+	async (error) => {
+		const originalRequest = error.config;
 
-    // Skip handling for refresh token requests to prevent circular dependencies
-    const isRefreshRequest = originalRequest?.url?.includes(
-      "/api/auth/token/refresh/"
-    );
-    if (isRefreshRequest) {
-      return Promise.reject(error);
-    }
+		// Skip handling for refresh token requests to prevent circular dependencies
+		const isRefreshRequest = originalRequest?.url?.includes(
+			"/api/auth/token/refresh/"
+		);
+		if (isRefreshRequest) {
+			return Promise.reject(error);
+		}
 
-    // If error is 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+		// If error is 401 and not already retrying
+		if (error.response?.status === 401 && !originalRequest._retry) {
+			originalRequest._retry = true;
 
-      try {
-        // Try to refresh token
-        const newToken = await refreshAccessToken();
+			try {
+				// Try to refresh token
+				const newToken = await refreshAccessToken();
 
-        if (newToken) {
-          // Update authorization header
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          // Add headers that might help reduce OPTIONS requests
-          originalRequest.headers["X-Requested-With"] = "XMLHttpRequest";
+				if (newToken) {
+					// Update authorization header
+					originalRequest.headers.Authorization = `Bearer ${newToken}`;
+					// Add headers that might help reduce OPTIONS requests
+					originalRequest.headers["X-Requested-With"] = "XMLHttpRequest";
 
-          // Retry original request
-          return axiosInstance(originalRequest);
-        } else {
-          // Refresh failed, redirect to login
-          if (
-            typeof window !== "undefined" &&
-            !window.location.pathname.includes("/login")
-          ) {
-            window.location.href = "/login";
-          }
-          return Promise.reject(new Error("Authentication failed"));
-        }
-      } catch (refreshError) {
-        // Refresh token failed, redirect to login
-        if (
-          typeof window !== "undefined" &&
-          !window.location.pathname.includes("/login")
-        ) {
-          window.location.href = "/login";
-        }
-        return Promise.reject(refreshError);
-      }
-    }
+					// Retry original request
+					return axiosInstance(originalRequest);
+				} else {
+					// Refresh failed, redirect to login
+					if (
+						typeof window !== "undefined" &&
+						!window.location.pathname.includes("/login")
+					) {
+						window.location.href = "/login";
+					}
+					return Promise.reject(new Error("Authentication failed"));
+				}
+			} catch (refreshError) {
+				// Refresh token failed, redirect to login
+				if (
+					typeof window !== "undefined" &&
+					!window.location.pathname.includes("/login")
+				) {
+					window.location.href = "/login";
+				}
+				return Promise.reject(refreshError);
+			}
+		}
 
-    return Promise.reject(error);
-  }
+		return Promise.reject(error);
+	}
 );
 
 // API service class
 class ApiService {
-  // Authentication
-  static async login(
-    username: string,
-    password: string
-  ): Promise<AxiosResponse> {
-    console.log(`Sending login request to ${API_BASE_URL}/api/auth/token/`);
-    try {
-      // Don't dedupe login requests
-      const response = await axiosInstance.post("/api/auth/token/", {
-        username,
-        password,
-      });
-      console.log("Login API response:", response.data);
-      return response;
-    } catch (error: any) {
-      console.error(
-        "Login API error:",
-        error?.response?.data || error.message || error
-      );
-      throw error;
-    }
-  }
+	// Authentication
+	static async login(
+		username: string,
+		password: string
+	): Promise<AxiosResponse> {
+		console.log(`Sending login request to ${API_BASE_URL}/api/auth/token/`);
+		try {
+			// Don't dedupe login requests
+			const response = await axiosInstance.post("/api/auth/token/", {
+				username,
+				password,
+			});
+			console.log("Login API response:", response.data);
+			return response;
+		} catch (error: any) {
+			console.error(
+				"Login API error:",
+				error?.response?.data || error.message || error
+			);
+			throw error;
+		}
+	}
 
-  static refreshToken(refresh: string): Promise<AxiosResponse> {
-    // Don't dedupe refresh token requests
-    return axiosInstance.post("/api/auth/token/refresh/", { refresh });
-  }
+	static refreshToken(refresh: string): Promise<AxiosResponse> {
+		// Don't dedupe refresh token requests
+		return axiosInstance.post("/api/auth/token/refresh/", { refresh });
+	}
 
-  static getCurrentUser(): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "get", url: "/api/auth/users/me/" });
-  }
+	static getCurrentUser(): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "get", url: "/api/auth/users/me/" });
+	}
 
-  // Profile methods
-  static getUserProfile(): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "get", url: "/api/auth/users/me/" });
-  }
+	// Profile methods
+	static getUserProfile(): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "get", url: "/api/auth/users/me/" });
+	}
 
-  static updateUserProfile(data: any): Promise<AxiosResponse> {
-    // Use PUT for full profile update (replacing the entire resource)
-    return dedupedRequest({ method: "put", url: "/api/auth/users/me/", data });
-  }
+	static updateUserProfile(data: any): Promise<AxiosResponse> {
+		// Use PUT for full profile update (replacing the entire resource)
+		return dedupedRequest({ method: "put", url: "/api/auth/users/me/", data });
+	}
 
-  static patchUserProfile(data: any): Promise<AxiosResponse> {
-    // Use PATCH for partial profile update (updating specific fields)
-    return dedupedRequest({
-      method: "patch",
-      url: "/api/auth/users/me/",
-      data,
-    });
-  }
+	static patchUserProfile(data: any): Promise<AxiosResponse> {
+		// Use PATCH for partial profile update (updating specific fields)
+		return dedupedRequest({
+			method: "patch",
+			url: "/api/auth/users/me/",
+			data,
+		});
+	}
 
-  // Users
-  static getUsers<T = any>(
-    search?: string,
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    const url = search
-      ? `/api/auth/users/?search=${encodeURIComponent(search)}`
-      : "/api/auth/users/";
-    return this.getWithPagination<T>(url, getAll);
-  }
+	// Users
+	static getUsers<T = any>(
+		search?: string,
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		const url = search
+			? `/api/auth/users/?search=${encodeURIComponent(search)}`
+			: "/api/auth/users/";
+		return this.getWithPagination<T>(url, getAll);
+	}
 
-  static changePassword(data: {
-    current_password: string;
-    password: string;
-  }): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "post",
-      url: "/api/auth/users/set_password/",
-      data,
-    });
-  }
+	static changePassword(data: {
+		current_password: string;
+		password: string;
+	}): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "post",
+			url: "/api/auth/users/set_password/",
+			data,
+		});
+	}
 
-  // Tasks
-  static getTasks<T = any>(
-    filters?: Record<string, any> | boolean,
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    // Handle case where first argument is a boolean (backwards compatibility)
-    if (typeof filters === 'boolean') {
-      getAll = filters;
-      filters = undefined;
-    }
-    
-    // Build URL with query parameters if filters are provided
-    let url = "/api/core/tasks/";
-    if (filters && typeof filters === 'object') {
-      const queryParams = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, String(value));
-        }
-      });
-      
-      const queryString = queryParams.toString();
-      if (queryString) {
-        url += `?${queryString}`;
-      }
-    }
-    
-    return this.getWithPagination<T>(url, getAll);
-  }
+	// Tasks
+	static getTasks<T = any>(
+		filters?: Record<string, any> | boolean,
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		// Handle case where first argument is a boolean (backwards compatibility)
+		if (typeof filters === "boolean") {
+			getAll = filters;
+			filters = undefined;
+		}
 
-  static getTasksToMe<T = any>(
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/tasks/to-me/?is_archived=false", getAll);
-  }
+		// Build URL with query parameters if filters are provided
+		let url = "/api/core/tasks/";
+		if (filters && typeof filters === "object") {
+			const queryParams = new URLSearchParams();
+			Object.entries(filters).forEach(([key, value]) => {
+				if (value !== undefined && value !== null) {
+					queryParams.append(key, String(value));
+				}
+			});
 
-  static getTasksByMe<T = any>(
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/tasks/by-me/?is_archived=false", getAll);
-  }
+			const queryString = queryParams.toString();
+			if (queryString) {
+				url += `?${queryString}`;
+			}
+		}
 
-  static getUserTasks<T = any>(
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/tasks/", getAll);
-  }
+		return this.getWithPagination<T>(url, getAll);
+	}
 
-  static getTeamTasks<T = any>(teamId: string, getAll: boolean = false): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>(`/api/core/teams/${teamId}/tasks/`, getAll);
-  }
+	static getTasksToMe<T = any>(
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		return this.getWithPagination<T>(
+			"/api/core/tasks/to-me/?is_archived=false",
+			getAll
+		);
+	}
 
-  static getTask(id: string): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "get", url: `/api/core/tasks/${id}/` });
-  }
+	static getTasksByMe<T = any>(
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		return this.getWithPagination<T>(
+			"/api/core/tasks/by-me/?is_archived=false",
+			getAll
+		);
+	}
 
-  static getTaskWithComments(id: string): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "get",
-      url: `/api/core/tasks/${id}/comments/`,
-    });
-  }
+	static getUserTasks<T = any>(
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		return this.getWithPagination<T>("/api/core/tasks/", getAll);
+	}
 
-  static addTaskComment(
-    taskId: string,
-    message: string
-  ): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "post",
-      url: `/api/core/tasks/${taskId}/comments/`,
-      data: { message },
-    });
-  }
+	static getTeamTasks<T = any>(
+		teamId: string,
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		return this.getWithPagination<T>(
+			`/api/core/teams/${teamId}/tasks/`,
+			getAll
+		);
+	}
 
-  static createTask(data: any): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "post", url: "/api/core/tasks/", data });
-  }
+	static getTask(id: string): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "get", url: `/api/core/tasks/${id}/` });
+	}
 
-  static updateTask(id: string, data: any): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/tasks/${id}/`,
-      data,
-    });
-  }
+	static getTaskWithComments(id: string): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "get",
+			url: `/api/core/tasks/${id}/comments/`,
+		});
+	}
 
-  static addUsersToTask(
-    taskId: string,
-    userIds: number[]
-  ): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "post",
-      url: `/api/core/tasks/${taskId}/add_users/`,
-      data: { user_ids: userIds },
-    });
-  }
+	static addTaskComment(
+		taskId: string,
+		message: string
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "post",
+			url: `/api/core/tasks/${taskId}/comments/`,
+			data: { message },
+		});
+	}
 
-  static getTaskComments(taskId: string): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "get",
-      url: `/api/core/tasks/${taskId}/comments/`,
-    });
-  }
+	static createTask(data: any): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "post", url: "/api/core/tasks/", data });
+	}
 
-  static deleteTask(id: string): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "delete", url: `/api/core/tasks/${id}/` });
-  }
+	static updateTask(id: string, data: any): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/tasks/${id}/`,
+			data,
+		});
+	}
 
-  // Boards
-  static getBoards<T = any>(
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/boards/", getAll);
-  }
+	static addUsersToTask(
+		taskId: string,
+		userIds: number[]
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "post",
+			url: `/api/core/tasks/${taskId}/add_users/`,
+			data: { user_ids: userIds },
+		});
+	}
 
-  static getBoard(id: string): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "get", url: `/api/boards/${id}/` });
-  }
+	static getTaskComments(taskId: string): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "get",
+			url: `/api/core/tasks/${taskId}/comments/`,
+		});
+	}
 
-  static createBoard(data: any): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "post", url: "/api/boards/", data });
-  }
+	static deleteTask(id: string): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "delete", url: `/api/core/tasks/${id}/` });
+	}
 
-  static updateBoard(id: string, data: any): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "put", url: `/api/boards/${id}/`, data });
-  }
+	// Boards
+	static getBoards<T = any>(
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		return this.getWithPagination<T>("/api/boards/", getAll);
+	}
 
-  static deleteBoard(id: string): Promise<AxiosResponse> {
-    return dedupedRequest({ method: "delete", url: `/api/boards/${id}/` });
-  }
+	static getBoard(id: string): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "get", url: `/api/boards/${id}/` });
+	}
 
-  // Notifications
-  static getNotifications<T = any>(
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    return this.getWithPagination<T>("/api/core/notifications/", getAll);
-  }
+	static createBoard(data: any): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "post", url: "/api/boards/", data });
+	}
 
-  static markNotificationAsRead(id: number): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/notifications/${id}/`,
-      data: { is_read: true },
-    });
-  }
+	static updateBoard(id: string, data: any): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "put", url: `/api/boards/${id}/`, data });
+	}
 
-  // Teams
-  static getTeams<T = any>(
-    search?: string,
-    getAll: boolean = false
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    const url = search
-      ? `/api/core/teams/?search=${encodeURIComponent(search)}`
-      : "/api/core/teams/";
-    return this.getWithPagination<T>(url, getAll);
-  }
+	static deleteBoard(id: string): Promise<AxiosResponse> {
+		return dedupedRequest({ method: "delete", url: `/api/boards/${id}/` });
+	}
 
-  /**
-   * Create a new team
-   * @param data Team data including name and description
-   * @returns Promise with the created team data
-   */
-  static createTeam(data: {
-    name: string;
-    description: string;
-  }): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "post",
-      url: "/api/core/teams/",
-      data,
-    });
-  }
+	// Notifications
+	static getNotifications<T = any>(
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		return this.getWithPagination<T>("/api/core/notifications/", getAll);
+	}
 
-  /**
-   * Get team details by ID
-   * @param id Team ID
-   * @returns Promise with team details
-   */
-  static getTeam(id: string): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "get",
-      url: `/api/core/teams/${id}/`,
-    });
-  }
+	static markNotificationAsRead(id: number): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/notifications/${id}/`,
+			data: { is_read: true },
+		});
+	}
 
-  /**
-   * Update team details
-   * @param id Team ID
-   * @param data Team data including name and description
-   * @returns Promise with updated team data
-   */
-  static updateTeam(id: string, data: {
-    name: string;
-    description: string;
-  }): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${id}/`,
-      data,
-    });
-  }
-  
-  /**
-   * Add a member to a team
-   * @param teamId Team ID
-   * @param userIds Array of User IDs to add as members
-   * @returns Promise with response
-   */
-  static addTeamMember(teamId: string, userIds: string[]): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${teamId}/`,
-      data: { members: userIds },
-    });
-  }
+	// Teams
+	static getTeams<T = any>(
+		search?: string,
+		getAll: boolean = false
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		const url = search
+			? `/api/core/teams/?search=${encodeURIComponent(search)}`
+			: "/api/core/teams/";
+		return this.getWithPagination<T>(url, getAll);
+	}
 
-  /**
-   * Remove a member from a team
-   * @param teamId Team ID
-   * @param userId User ID to remove from the team
-   * @returns Promise with response
-   */
-  static removeTeamMember(teamId: string, userId: string): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${teamId}/`,
-      data: { members_remove: [userId] },
-    });
-  }
+	/**
+	 * Create a new team
+	 * @param data Team data including name and description
+	 * @returns Promise with the created team data
+	 */
+	static createTeam(data: {
+		name: string;
+		description: string;
+	}): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "post",
+			url: "/api/core/teams/",
+			data,
+		});
+	}
 
-  /**
-   * Add an admin to a team
-   * @param teamId Team ID
-   * @param userIds User IDs to add as an admin
-   * @returns Promise with response
-   */
-  static addTeamAdmin(teamId: string, userIds: string[]): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${teamId}/`,
-      data: { admins: userIds },
-    });
-  }
-  
-  /**
-   * Remove multiple members from a team
-   * @param teamId Team ID
-   * @param userIds User IDs to remove
-   * @returns Promise with response
-   */
-  static removeTeamMembers(teamId: string, userIds: string[]): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${teamId}/`,
-      data: { members_remove: userIds },
-    });
-  }
+	/**
+	 * Get team details by ID
+	 * @param id Team ID
+	 * @returns Promise with team details
+	 */
+	static getTeam(id: string): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "get",
+			url: `/api/core/teams/${id}/`,
+		});
+	}
 
-  /**
-   * Remove multiple admins from a team
-   * @param teamId Team ID
-   * @param userIds User IDs to remove
-   * @returns Promise with response
-   */
-  static removeTeamAdmins(teamId: string, userIds: string[]): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${teamId}/`,
-      data: { admins_remove: userIds },
-    });
-  }
+	/**
+	 * Update team details
+	 * @param id Team ID
+	 * @param data Team data including name and description
+	 * @returns Promise with updated team data
+	 */
+	static updateTeam(
+		id: string,
+		data: {
+			name: string;
+			description: string;
+		}
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${id}/`,
+			data,
+		});
+	}
 
-  /**
-   * Remove an admin from a team
-   * @param teamId Team ID
-   * @param userIds User IDs to remove
-   * @returns Promise with response
-   */
-  static removeTeamAdmin(teamId: string, userIds: string[]): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/teams/${teamId}/`,
-      data: { admins_remove: userIds },
-    });
-  }
+	/**
+	 * Add a member to a team
+	 * @param teamId Team ID
+	 * @param userIds Array of User IDs to add as members
+	 * @returns Promise with response
+	 */
+	static addTeamMember(
+		teamId: string,
+		userIds: string[]
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${teamId}/`,
+			data: { members: userIds },
+		});
+	}
 
-  /**
-   * Archive or unarchive a task
-   * @param taskId Task ID
-   * @param isArchived Whether to archive (true) or unarchive (false) the task
-   * @returns Promise with response
-   */
-  static archiveTask(taskId: string, isArchived: boolean): Promise<AxiosResponse> {
-    return dedupedRequest({
-      method: "patch",
-      url: `/api/core/tasks/${taskId}/`,
-      data: { is_archived: isArchived },
-    });
-  }
+	/**
+	 * Remove a member from a team
+	 * @param teamId Team ID
+	 * @param userId User ID to remove from the team
+	 * @returns Promise with response
+	 */
+	static removeTeamMember(
+		teamId: string,
+		userId: string
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${teamId}/`,
+			data: { members_remove: [userId] },
+		});
+	}
 
-  // Generic request method
-  static request<T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return dedupedRequest(config);
-  }
+	/**
+	 * Add an admin to a team
+	 * @param teamId Team ID
+	 * @param userIds User IDs to add as an admin
+	 * @returns Promise with response
+	 */
+	static addTeamAdmin(
+		teamId: string,
+		userIds: string[]
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${teamId}/`,
+			data: { admins: userIds },
+		});
+	}
 
-  /**
-   * Generic GET method with pagination support
-   * @param url The API endpoint URL
-   * @param getAll Whether to fetch all pages (true) or just the first page (false)
-   * @param config Optional axios config
-   * @returns Promise with response data or all results if getAll is true
-   */
-  static async getWithPagination<T>(
-    url: string,
-    getAll: boolean = false,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
-    if (!getAll) {
-      return dedupedRequest<PaginatedResponse<T>>({
-        method: "get",
-        url,
-        ...config,
-      });
-    }
+	/**
+	 * Remove multiple members from a team
+	 * @param teamId Team ID
+	 * @param userIds User IDs to remove
+	 * @returns Promise with response
+	 */
+	static removeTeamMembers(
+		teamId: string,
+		userIds: string[]
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${teamId}/`,
+			data: { members_remove: userIds },
+		});
+	}
 
-    // If getAll is true, fetch all pages
-    let nextUrl: string | null = url;
-    let allResults: T[] = [];
+	/**
+	 * Remove multiple admins from a team
+	 * @param teamId Team ID
+	 * @param userIds User IDs to remove
+	 * @returns Promise with response
+	 */
+	static removeTeamAdmins(
+		teamId: string,
+		userIds: string[]
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${teamId}/`,
+			data: { admins_remove: userIds },
+		});
+	}
 
-    while (nextUrl) {
-      try {
-        const response: AxiosResponse<PaginatedResponse<T>> =
-          await dedupedRequest({
-            method: "get",
-            url: nextUrl,
-            ...config,
-          });
+	/**
+	 * Remove an admin from a team
+	 * @param teamId Team ID
+	 * @param userIds User IDs to remove
+	 * @returns Promise with response
+	 */
+	static removeTeamAdmin(
+		teamId: string,
+		userIds: string[]
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/teams/${teamId}/`,
+			data: { admins_remove: userIds },
+		});
+	}
 
-        const data = response.data;
+	/**
+	 * Archive or unarchive a task
+	 * @param taskId Task ID
+	 * @param isArchived Whether to archive (true) or unarchive (false) the task
+	 * @returns Promise with response
+	 */
+	static archiveTask(
+		taskId: string,
+		isArchived: boolean
+	): Promise<AxiosResponse> {
+		return dedupedRequest({
+			method: "patch",
+			url: `/api/core/tasks/${taskId}/`,
+			data: { is_archived: isArchived },
+		});
+	}
 
-        if (Array.isArray(data.results)) {
-          allResults = [...allResults, ...data.results];
-        }
+	// Generic request method
+	static request<T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+		return dedupedRequest(config);
+	}
 
-        nextUrl = data.next;
-      } catch (error) {
-        console.error("Error fetching paginated data:", error);
-        throw error;
-      }
-    }
+	/**
+	 * Generic GET method with pagination support
+	 * @param url The API endpoint URL
+	 * @param getAll Whether to fetch all pages (true) or just the first page (false)
+	 * @param config Optional axios config
+	 * @returns Promise with response data or all results if getAll is true
+	 */
+	static async getWithPagination<T>(
+		url: string,
+		getAll: boolean = false,
+		config?: AxiosRequestConfig
+	): Promise<AxiosResponse<PaginatedResponse<T>> | T[]> {
+		if (!getAll) {
+			return dedupedRequest<PaginatedResponse<T>>({
+				method: "get",
+				url,
+				...config,
+			});
+		}
 
-    return allResults;
-  }
+		// If getAll is true, fetch all pages
+		let nextUrl: string | null = url;
+		let allResults: T[] = [];
+
+		while (nextUrl) {
+			try {
+				const response: AxiosResponse<PaginatedResponse<T>> =
+					await dedupedRequest({
+						method: "get",
+						url: nextUrl,
+						...config,
+					});
+
+				const data = response.data;
+
+				if (Array.isArray(data.results)) {
+					allResults = [...allResults, ...data.results];
+				}
+
+				nextUrl = data.next;
+			} catch (error) {
+				console.error("Error fetching paginated data:", error);
+				throw error;
+			}
+		}
+
+		return allResults;
+	}
 }
 
 export default ApiService;
