@@ -17,8 +17,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Insider - Task Management",
-	description: "Internal task management application",
+	title: "Insider - Efficient Task Management Solutions",
+	description:
+		"Efficient task management made simple. Sign in to Insider for seamless tracking and collaboration on your projects.",
+	keywords: [
+		"task management",
+		"insider task manager",
+		"project management tool",
+		"Insider",
+		"project organization",
+		"team collaboration",
+		"productivity tools",
+		"task tracking",
+	],
+	openGraph: {
+		title: "Insider - Efficient Task Management Solutions",
+		description:
+			"Efficient task management made simple. Sign in to Insider for seamless tracking and collaboration on your projects.",
+	},
+	twitter: {
+		title: "Insider - Efficient Task Management Solutions",
+		description:
+			"Efficient task management made simple. Sign in to Insider for seamless tracking and collaboration on your projects.",
+	},
 };
 
 export default function RootLayout({
