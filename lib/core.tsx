@@ -237,6 +237,8 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 
 	// Initialize spaces based on teams
 	const initializeSpaces = () => {
+		console.log("Initializing spaces with teams:", teams);
+		
 		const newSpaces: Space[] = [
 			// All tasks space
 			{
@@ -253,15 +255,20 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 		];
 
 		// Add team spaces
-		teams.forEach((team) => {
-			newSpaces.push({
-				id: `team_${team.id}`,
-				name: team.name,
-				type: "team",
-				teamId: team.id,
+		if (teams && teams.length > 0) {
+			teams.forEach((team) => {
+				if (team && team.id) {
+					newSpaces.push({
+						id: `team_${team.id}`,
+						name: team.name || `Team ${team.id}`,
+						type: "team",
+						teamId: team.id,
+					});
+				}
 			});
-		});
+		}
 
+		console.log("Created spaces:", newSpaces);
 		setSpaces(newSpaces);
 
 		// Set selected space from localStorage or default to 'all'
@@ -269,12 +276,14 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 		if (savedSpaceId && newSpaces.some((space) => space.id === savedSpaceId)) {
 			const space = newSpaces.find((space) => space.id === savedSpaceId);
 			if (space) {
+				console.log("Setting selected space from localStorage:", space);
 				setSelectedSpace(space);
 			}
 		} else {
 			// Default to 'all' space
 			const allSpace = newSpaces.find((space) => space.id === "all");
 			if (allSpace) {
+				console.log("Setting default 'all' space:", allSpace);
 				setSelectedSpace(allSpace);
 				localStorage.setItem("selectedSpaceId", allSpace.id);
 			}
@@ -290,12 +299,22 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 		}
 	}, [user?.id]);
 
-	// Initialize spaces when teams are loaded
+	// Initialize spaces when teams are loaded or on component mount
 	useEffect(() => {
-		if (teams.length > 0) {
-			initializeSpaces();
-		}
+		// Always initialize spaces, even if teams array is empty
+		initializeSpaces();
 	}, [teams]);
+
+	// Make sure we always have a selected space
+	useEffect(() => {
+		if (!selectedSpace && spaces.length > 0) {
+			const allSpace = spaces.find(space => space.id === "all");
+			if (allSpace) {
+				console.log("Ensuring selected space is set:", allSpace);
+				setSelectedSpace(allSpace);
+			}
+		}
+	}, [selectedSpace, spaces]);
 
 	return (
 		<CoreContext.Provider

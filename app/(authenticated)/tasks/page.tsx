@@ -134,54 +134,124 @@ export default function TasksPage() {
 	const fetchTasks = async () => {
 		try {
 			setLoading(true);
+			console.log("Fetching tasks with:", { 
+				user, 
+				allTasksCount: allTasks.length, 
+				selectedSpace, 
+				spaces 
+			});
 
 			// Only refresh tasks from CoreContext if we need to
 			if (!allTasks.length) {
+				console.log("No tasks found, refreshing from API");
 				await refreshTasks();
 			}
 
-			if (selectedSpace) {
-				// Get tasks filtered by the selected space
-				const spaceTasks = getTasksBySpace(selectedSpace.id);
+			// If no selected space but we have spaces, select the first one
+			if (!selectedSpace && spaces.length > 0) {
+				console.log("No selected space but spaces exist, selecting first space");
+				const defaultSpace = spaces.find(s => s.id === "all") || spaces[0];
+				setSelectedSpace(defaultSpace);
+				return; // This will trigger a re-render and this function will run again
+			}
 
-				// Filter tasks assigned to the user
-				const toMeTasks = spaceTasks.filter((task) => {
-					if (!task.assigned_users || !user?.id) return false;
+			// If we still don't have a selected space, show empty state
+			if (!selectedSpace) {
+				console.log("No selected space and no spaces available");
+				setTasksToMe([]);
+				setTasksByMe([]);
+				return;
+			}
 
-					return task.assigned_users.some((u) => {
-						// If u is a string (user ID)
-						if (typeof u === "string") {
-							return u === user.id.toString();
+			// Get tasks filtered by the selected space
+			const spaceTasks = getTasksBySpace(selectedSpace.id);
+			console.log(`Got ${spaceTasks.length} tasks for space ${selectedSpace.id}`);
+
+			// Filter tasks assigned to the user
+			const toMeTasks = spaceTasks.filter((task) => {
+				if (!task) return false;
+				if (!user?.id) return false;
+				if (!task.assigned_users) return false;
+
+				// Handle different types of assigned_users data
+				let assignedUsers = task.assigned_users;
+				if (!Array.isArray(assignedUsers)) {
+					// If it's not an array, try to convert it
+					try {
+						if (typeof assignedUsers === 'string') {
+							assignedUsers = JSON.parse(assignedUsers);
+						} else {
+							return false;
 						}
-
-						// If u is a User object with id
-						if (u && typeof u === "object" && u.id) {
-							return u.id.toString() === user.id.toString();
-						}
-
+					} catch (e) {
+						console.error("Error parsing assigned_users:", e);
 						return false;
-					});
-				});
-				setTasksToMe(toMeTasks);
+					}
+				}
 
-				// Filter tasks created by the user
-				const byMeTasks = spaceTasks.filter((task) => {
-					if (!user?.id || !task.created_by) return false;
+				return assignedUsers.some((u) => {
+					if (!u) return false;
 
-					// If created_by is a string (user ID)
-					if (typeof task.created_by === "string") {
-						return task.created_by === user.id.toString();
+					// If u is a string (user ID)
+					if (typeof u === "string") {
+						return u === user.id.toString();
 					}
 
-					// If created_by is a User object with id
-					if (typeof task.created_by === "object" && task.created_by.id) {
-						return task.created_by.id.toString() === user.id.toString();
+					// If u is a User object with id
+					if (typeof u === "object") {
+						// Handle different object structures that might represent a user
+						const userId = u.id;
+						if (userId) {
+							return userId.toString() === user.id.toString();
+						}
+						
+						// Handle non-standard object formats that might be in the data
+						const anyU = u as any;
+						if (anyU.user_id || anyU.userId) {
+							const altId = anyU.user_id || anyU.userId;
+							return altId.toString() === user.id.toString();
+						}
 					}
 
 					return false;
 				});
-				setTasksByMe(byMeTasks);
-			}
+			});
+			console.log(`Filtered ${toMeTasks.length} tasks assigned to me`);
+			setTasksToMe(toMeTasks);
+
+			// Filter tasks created by the user
+			const byMeTasks = spaceTasks.filter((task) => {
+				if (!task) return false;
+				if (!user?.id) return false;
+				if (!task.created_by) return false;
+
+				const createdBy = task.created_by;
+
+				// If created_by is a string (user ID)
+				if (typeof createdBy === "string") {
+					return createdBy === user.id.toString();
+				}
+
+				// If created_by is a User object with id
+				if (typeof createdBy === "object") {
+					// Handle standard User object
+					const creatorId = createdBy.id;
+					if (creatorId) {
+						return creatorId.toString() === user.id.toString();
+					}
+					
+					// Handle non-standard object formats
+					const anyCreator = createdBy as any;
+					if (anyCreator.user_id || anyCreator.userId) {
+						const altId = anyCreator.user_id || anyCreator.userId;
+						return altId.toString() === user.id.toString();
+					}
+				}
+
+				return false;
+			});
+			console.log(`Filtered ${byMeTasks.length} tasks created by me`);
+			setTasksByMe(byMeTasks);
 
 			setError(null);
 		} catch (err) {

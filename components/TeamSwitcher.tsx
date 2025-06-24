@@ -33,6 +33,7 @@ export function TeamSwitcher() {
 	const { t } = useLanguage();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const {
 		teams,
 		selectedTeam,
@@ -40,38 +41,74 @@ export function TeamSwitcher() {
 		spaces,
 		selectedSpace,
 		setSelectedSpace,
+		refreshTeams,
 	} = useCore();
+
+	// Debug logging
+	React.useEffect(() => {
+		console.log("TeamSwitcher state:", {
+			teamsCount: teams.length,
+			spacesCount: spaces.length,
+			selectedTeam,
+			selectedSpace,
+		});
+		
+		// If we don't have spaces but have teams, try refreshing teams
+		if (teams.length > 0 && spaces.length === 0) {
+			console.log("Have teams but no spaces, refreshing teams");
+			refreshTeams();
+		}
+	}, [teams, spaces, selectedTeam, selectedSpace, refreshTeams]);
 
 	// Group spaces by type
 	const allSpace = spaces.find((space) => space.type === "all");
 	const individualSpace = spaces.find((space) => space.type === "individual");
 	const teamSpaces = spaces.filter((space) => space.type === "team");
 	const customSpaces = spaces.filter((space) => space.type === "custom");
-
-	if (!teams.length && !spaces.length) {
-		return null;
+	
+	// If no spaces are available, show a minimal UI instead of nothing
+	if (!spaces.length) {
+		return (
+			<Button
+				variant="outline"
+				className="w-full justify-between text-left font-normal"
+				onClick={() => refreshTeams()}
+			>
+				{t("spaces.loading") || "Loading spaces..."}
+				<ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+			</Button>
+		);
 	}
 
-	const handleTeamSelect = (team: Team) => {
-		setSelectedTeam(team);
-		// If we select a team, also select its corresponding team space if it exists
-		const teamSpace = teamSpaces.find((space) => space.teamId === team.id);
-		if (teamSpace) {
-			setSelectedSpace(teamSpace);
-		}
-		setOpen(false);
-	};
-
 	const handleSpaceSelect = (space: Space) => {
-		setSelectedSpace(space);
-		// If selecting a team space, also select the corresponding team
-		if (space.type === "team" && space.teamId) {
-			const team = teams.find((t) => t.id === space.teamId);
-			if (team) {
-				setSelectedTeam(team);
+		try {
+			console.log("Selecting space:", space);
+			
+			// Store the space ID in localStorage for persistence
+			localStorage.setItem("selectedSpaceId", space.id);
+			
+			// Update the selected space in CoreContext
+			setSelectedSpace(space);
+			
+			// If selecting a team space, also select the corresponding team
+			if (space.type === "team" && space.teamId) {
+				const team = teams.find((t) => t.id === space.teamId);
+				if (team) {
+					console.log("Also selecting team:", team);
+					setSelectedTeam(team);
+					localStorage.setItem("selectedTeamId", team.id.toString());
+				} else {
+					console.warn("Team not found for space:", space);
+				}
 			}
+			
+			setError(null);
+		} catch (err) {
+			console.error("Error selecting space:", err);
+			setError("Failed to select space");
+		} finally {
+			setOpen(false);
 		}
-		setOpen(false);
 	};
 
 	const handleCreateTeam = () => {
