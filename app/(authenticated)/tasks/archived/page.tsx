@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import ApiService from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { useCore } from "@/lib/core";
 import { toast } from "sonner";
 import {
 	Breadcrumb,
@@ -46,6 +47,13 @@ export default function ArchivedTasksPage() {
 	const router = useRouter();
 	const { t } = useLanguage();
 	const { user } = useAuth();
+	const { 
+		tasks: allTasks, 
+		refreshTasks, 
+		updateTask: coreUpdateTask, 
+		getTasksBySpace,
+		selectedSpace 
+	} = useCore();
 
 	// State for tasks
 	const [tasksToMe, setTasksToMe] = useState<Task[]>(initialTasks);
@@ -68,35 +76,75 @@ export default function ArchivedTasksPage() {
 	// State for drag and drop
 	const [draggedTask, setDraggedTask] = useState<Task | null>(null);
 
-	// Fetch tasks on component mount
+	// Fetch tasks when selectedSpace or allTasks changes
 	useEffect(() => {
 		fetchTasks();
-	}, []);
+	}, [selectedSpace, allTasks.length]);
 
-	// Fetch tasks from API
+	// Fetch tasks from CoreContext
 	const fetchTasks = async () => {
 		try {
 			setLoading(true);
 			setError(null);
 
-			// Fetch tasks assigned to me with is_archived=true using the specific endpoint
-			const tasksToMeResponse = await ApiService.getWithPagination<Task>(
-				"/api/core/tasks/to-me/?is_archived=true"
-			);
-
-			// Fetch tasks created by me with is_archived=true using the specific endpoint
-			const tasksByMeResponse = await ApiService.getWithPagination<Task>(
-				"/api/core/tasks/by-me/?is_archived=true"
-			);
-
-			// Set the tasks data
-			if ("data" in tasksToMeResponse) {
-				setTasksToMe(tasksToMeResponse.data.results);
+			// Only refresh tasks from CoreContext if we need to
+			if (!allTasks.length) {
+				await refreshTasks();
 			}
 
-			if ("data" in tasksByMeResponse) {
-				setTasksByMe(tasksByMeResponse.data.results);
+			if (selectedSpace) {
+				// Get tasks filtered by the selected space
+				const spaceTasks = getTasksBySpace(selectedSpace.id);
+
+				// Filter tasks assigned to the user and only get archived ones (COMPLETED status)
+				const archivedToMeTasks = spaceTasks.filter((task) => {
+					if (!task.assigned_users || !user?.id) return false;
+					
+					// Check if task is assigned to current user
+					const isAssignedToUser = task.assigned_users.some((u) => {
+						// If u is a string (user ID)
+						if (typeof u === "string") {
+							return u === user.id.toString();
+						}
+
+						// If u is a User object with id
+						if (u && typeof u === "object" && u.id) {
+							return u.id.toString() === user.id.toString();
+						}
+
+						return false;
+					});
+
+					// Only return tasks that are assigned to user AND have COMPLETED status
+					return isAssignedToUser && task.status === TaskStatusBackend.COMPLETED;
+				});
+				setTasksToMe(archivedToMeTasks);
+				console.log(`Found ${archivedToMeTasks.length} archived tasks assigned to me`);
+
+				// Filter tasks created by the user and only get archived ones
+				const archivedByMeTasks = spaceTasks.filter((task) => {
+					if (!user?.id || !task.created_by) return false;
+
+					// Check if task was created by current user
+					let isCreatedByUser = false;
+					// If created_by is a string (user ID)
+					if (typeof task.created_by === "string") {
+						isCreatedByUser = task.created_by === user.id.toString();
+					}
+
+					// If created_by is a User object with id
+					if (typeof task.created_by === "object" && task.created_by.id) {
+						isCreatedByUser = task.created_by.id.toString() === user.id.toString();
+					}
+
+					// Only return tasks that are created by user AND have COMPLETED status
+					return isCreatedByUser && task.status === TaskStatusBackend.COMPLETED;
+				});
+				setTasksByMe(archivedByMeTasks);
+				console.log(`Found ${archivedByMeTasks.length} archived tasks created by me`);
 			}
+
+			setError(null);
 		} catch (error) {
 			console.error("Error fetching tasks:", error);
 			setError(t("tasks.fetchError") || "Failed to fetch tasks");
@@ -113,25 +161,29 @@ export default function ArchivedTasksPage() {
 		}
 
 		try {
-			await ApiService.archiveTask(task.id.toString(), false);
+			// Update task status to TODO (1) to mark it as unarchived
+			const updatedTask = await coreUpdateTask(Number(task.id), {
+				status: 1 // TaskStatusBackend.TODO
+			} as any);
+
+			console.log('Task unarchived successfully:', updatedTask);
 
 			// Update the local state to remove the unarchived task
-			if (
-				task.created_by?.id &&
-				user?.id &&
-				task.created_by.id.toString() === user.id.toString()
-			) {
+			const isTaskByMe = typeof task.created_by === "string"
+				? task.created_by === user?.id?.toString()
+				: task.created_by?.id?.toString() === user?.id?.toString();
+
+			const isTaskToMe = task.assigned_users?.some(u => {
+				if (typeof u === "string") return u === user?.id?.toString();
+				return u?.id?.toString() === user?.id?.toString();
+			});
+
+			// Remove task from the appropriate list
+			if (isTaskByMe) {
 				setTasksByMe((prev) => prev.filter((t) => t.id !== task.id));
 			}
 
-			if (
-				task.assigned_users &&
-				Array.isArray(task.assigned_users) &&
-				task.assigned_users.some(
-					(assignee: { id: number | string }) =>
-						assignee.id.toString() === user?.id?.toString()
-				)
-			) {
+			if (isTaskToMe) {
 				setTasksToMe((prev) => prev.filter((t) => t.id !== task.id));
 			}
 
@@ -148,12 +200,25 @@ export default function ArchivedTasksPage() {
 	// Handle priority change for mobile devices
 	const handlePriorityChange = async (task: Task, newPriority: number) => {
 		try {
-			await ApiService.updateTask(task.id.toString(), {
+			// Update task priority using CoreContext
+			const updatedTask = await coreUpdateTask(Number(task.id), {
 				priority: newPriority,
-			});
+			} as any);
+
+			console.log('Task priority updated successfully:', updatedTask);
 
 			// Update local state
-			if (task.created_by?.id?.toString() === user?.id?.toString()) {
+			const isTaskByMe = typeof task.created_by === "string"
+				? task.created_by === user?.id?.toString()
+				: task.created_by?.id?.toString() === user?.id?.toString();
+
+			const isTaskToMe = task.assigned_users?.some(u => {
+				if (typeof u === "string") return u === user?.id?.toString();
+				return u?.id?.toString() === user?.id?.toString();
+			});
+
+			// Update the appropriate task list
+			if (isTaskByMe) {
 				setTasksByMe((prev) =>
 					prev.map((t) =>
 						t.id === task.id ? { ...t, priority: newPriority } : t
@@ -161,14 +226,7 @@ export default function ArchivedTasksPage() {
 				);
 			}
 
-			if (
-				task.assigned_users &&
-				Array.isArray(task.assigned_users) &&
-				task.assigned_users.some(
-					(assignee: { id: number | string }) =>
-						assignee.id.toString() === user?.id?.toString()
-				)
-			) {
+			if (isTaskToMe) {
 				setTasksToMe((prev) =>
 					prev.map((t) =>
 						t.id === task.id ? { ...t, priority: newPriority } : t
@@ -215,6 +273,10 @@ export default function ArchivedTasksPage() {
 				<h1 className="text-2xl font-bold tracking-tight">
 					{t("tasks.archivedTasks") || "Archived Tasks"}
 				</h1>
+				<Button variant="outline" onClick={() => router.push("/tasks")}>
+					<ClipboardList className="mr-2 h-4 w-4" />
+					{t("tasks.activeTasks") || "Active Tasks"}
+				</Button>
 			</div>
 
 			<Tabs defaultValue="to-me" className="w-full">

@@ -238,7 +238,7 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 	// Initialize spaces based on teams
 	const initializeSpaces = () => {
 		console.log("Initializing spaces with teams:", teams);
-		
+
 		const newSpaces: Space[] = [
 			// All tasks space
 			{
@@ -308,7 +308,7 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 	// Make sure we always have a selected space
 	useEffect(() => {
 		if (!selectedSpace && spaces.length > 0) {
-			const allSpace = spaces.find(space => space.id === "all");
+			const allSpace = spaces.find((space) => space.id === "all");
 			if (allSpace) {
 				console.log("Ensuring selected space is set:", allSpace);
 				setSelectedSpace(allSpace);
