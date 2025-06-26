@@ -184,7 +184,7 @@ export default function ArchivedTasksPage() {
 
 		try {
 			// Update task status to TODO (1) to mark it as unarchived
-			const updatedTask = await coreUpdateTask(Number(task.id), {
+			const updatedTask = await coreUpdateTask(task.id, {
 				status: 1, // TaskStatusBackend.TODO
 			} as any);
 
@@ -224,7 +224,7 @@ export default function ArchivedTasksPage() {
 	const handlePriorityChange = async (task: Task, newPriority: number) => {
 		try {
 			// Update task priority using CoreContext
-			const updatedTask = await coreUpdateTask(Number(task.id), {
+			const updatedTask = await coreUpdateTask(task.id, {
 				priority: newPriority,
 			} as any);
 

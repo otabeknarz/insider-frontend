@@ -140,24 +140,14 @@ export default function TasksPage() {
 	const fetchTasks = async () => {
 		try {
 			setLoading(true);
-			console.log("Fetching tasks with:", {
-				user,
-				allTasksCount: allTasks.length,
-				selectedSpace,
-				spaces,
-			});
 
 			// Only refresh tasks from CoreContext if we need to
 			if (!allTasks.length) {
-				console.log("No tasks found, refreshing from API");
 				await refreshTasks();
 			}
 
 			// If no selected space but we have spaces, select the first one
 			if (!selectedSpace && spaces.length > 0) {
-				console.log(
-					"No selected space but spaces exist, selecting first space"
-				);
 				const defaultSpace = spaces.find((s) => s.id === "all") || spaces[0];
 				setSelectedSpace(defaultSpace);
 				return; // This will trigger a re-render and this function will run again
@@ -165,7 +155,6 @@ export default function TasksPage() {
 
 			// If we still don't have a selected space, show empty state
 			if (!selectedSpace) {
-				console.log("No selected space and no spaces available");
 				setTasksToMe([]);
 				setTasksByMe([]);
 				return;
@@ -173,9 +162,6 @@ export default function TasksPage() {
 
 			// Get tasks filtered by the selected space
 			const spaceTasks = getTasksBySpace(selectedSpace.id);
-			console.log(
-				`Got ${spaceTasks.length} tasks for space ${selectedSpace.id}`
-			);
 
 			// Filter tasks assigned to the user
 			const toMeTasks = spaceTasks.filter((task) => {
@@ -226,7 +212,6 @@ export default function TasksPage() {
 					return false;
 				});
 			});
-			console.log(`Filtered ${toMeTasks.length} tasks assigned to me`);
 			setTasksToMe(toMeTasks);
 
 			// Filter out archived tasks (status COMPLETED)
@@ -234,7 +219,6 @@ export default function TasksPage() {
 				(task) => task.status !== TaskStatusBackend.COMPLETED
 			);
 			setActiveTasksToMe(activeToMe);
-			console.log(`Found ${activeToMe.length} active tasks assigned to me`);
 
 			// Filter tasks created by the user
 			const byMeTasks = spaceTasks.filter((task) => {
@@ -267,7 +251,6 @@ export default function TasksPage() {
 
 				return false;
 			});
-			console.log(`Filtered ${byMeTasks.length} tasks created by me`);
 			setTasksByMe(byMeTasks);
 
 			// Filter out archived tasks (status COMPLETED)
@@ -275,7 +258,6 @@ export default function TasksPage() {
 				(task) => task.status !== TaskStatusBackend.COMPLETED
 			);
 			setActiveTasksByMe(activeByMe);
-			console.log(`Found ${activeByMe.length} active tasks created by me`);
 
 			setError(null);
 		} catch (err) {
@@ -290,11 +272,8 @@ export default function TasksPage() {
 
 	// This effect ensures tasks are loaded when the component mounts, regardless of selectedSpace
 	useEffect(() => {
-		console.log("Initial tasks loading effect triggered");
 		if (!allTasks.length) {
-			console.log("No tasks in CoreContext, forcing refresh");
 			refreshTasks().then(() => {
-				console.log("Tasks refreshed from API");
 				fetchTasks();
 			});
 		}
@@ -302,7 +281,6 @@ export default function TasksPage() {
 
 	useEffect(() => {
 		// Fetch tasks whenever selectedSpace or allTasks change
-		console.log("Selected space or tasks changed, fetching tasks");
 		fetchTasks();
 
 		// Check if we're on mobile
@@ -550,7 +528,7 @@ export default function TasksPage() {
 			if (selectedTask) {
 				// Update existing task using CoreContext
 				await coreUpdateTask(
-					Number(selectedTask.id),
+					selectedTask.id,
 					apiTaskData as any // Use type assertion as a workaround
 				);
 				toast.success(t("tasks.updateSuccess") || "Task updated successfully");
@@ -598,7 +576,7 @@ export default function TasksPage() {
 			setIsDeleting(true);
 
 			// Use CoreContext to delete the task
-			const success = await coreDeleteTask(Number(taskToDelete.id));
+			const success = await coreDeleteTask(taskToDelete.id);
 
 			if (success) {
 				// Update UI after successful deletion
@@ -685,15 +663,21 @@ export default function TasksPage() {
 						prev.filter((t) => t.id !== draggedTask.id)
 					);
 				}
-				
+
 				// Task is now archived, we'll need to refresh the archived tasks page when the user navigates there
 			} else if (isUnarchiving) {
 				// Moving from archived to active - add to active lists
 				if (isTaskByMe) {
-					setActiveTasksByMe((prev: BackendTask[]) => [...prev, { ...draggedTask, status }]);
+					setActiveTasksByMe((prev: BackendTask[]) => [
+						...prev,
+						{ ...draggedTask, status },
+					]);
 				}
 				if (isTaskToMe) {
-					setActiveTasksToMe((prev: BackendTask[]) => [...prev, { ...draggedTask, status }]);
+					setActiveTasksToMe((prev: BackendTask[]) => [
+						...prev,
+						{ ...draggedTask, status },
+					]);
 				}
 			} else {
 				// Just updating status within active tasks
@@ -714,7 +698,7 @@ export default function TasksPage() {
 			}
 
 			// Update task status in API using CoreContext
-			await coreUpdateTask(Number(draggedTask.id), {
+			await coreUpdateTask(draggedTask.id, {
 				status,
 			} as any);
 
@@ -749,11 +733,9 @@ export default function TasksPage() {
 
 		try {
 			// Set task status to COMPLETED to mark it as archived
-			const updatedTask = await coreUpdateTask(Number(task.id), {
+			const updatedTask = await coreUpdateTask(task.id, {
 				status: TaskStatusBackend.COMPLETED,
 			} as any);
-
-			console.log("Task archived successfully:", updatedTask);
 
 			// Update the local state to move the task from active to archived lists
 			const isTaskByMe =
@@ -768,11 +750,15 @@ export default function TasksPage() {
 
 			// Update active task lists by removing the archived task
 			if (isTaskByMe) {
-				setActiveTasksByMe((prev: BackendTask[]) => prev.filter((t) => t.id !== task.id));
+				setActiveTasksByMe((prev: BackendTask[]) =>
+					prev.filter((t) => t.id !== task.id)
+				);
 			}
 
 			if (isTaskToMe) {
-				setActiveTasksToMe((prev: BackendTask[]) => prev.filter((t) => t.id !== task.id));
+				setActiveTasksToMe((prev: BackendTask[]) =>
+					prev.filter((t) => t.id !== task.id)
+				);
 			}
 
 			// Show success message
