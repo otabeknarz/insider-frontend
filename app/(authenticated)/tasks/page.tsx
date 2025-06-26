@@ -288,11 +288,22 @@ export default function TasksPage() {
 		}
 	};
 
+	// This effect ensures tasks are loaded when the component mounts, regardless of selectedSpace
 	useEffect(() => {
-		// Only fetch tasks if we have a selected space
-		if (selectedSpace) {
-			fetchTasks();
+		console.log("Initial tasks loading effect triggered");
+		if (!allTasks.length) {
+			console.log("No tasks in CoreContext, forcing refresh");
+			refreshTasks().then(() => {
+				console.log("Tasks refreshed from API");
+				fetchTasks();
+			});
 		}
+	}, []); // Empty dependency array ensures this runs once on mount
+
+	useEffect(() => {
+		// Fetch tasks whenever selectedSpace or allTasks change
+		console.log("Selected space or tasks changed, fetching tasks");
+		fetchTasks();
 
 		// Check if we're on mobile
 		const checkIfMobile = () => {
@@ -308,7 +319,7 @@ export default function TasksPage() {
 
 		// Clean up event listener
 		return () => window.removeEventListener("resize", checkIfMobile);
-	}, [selectedSpace?.id, user?.id]); // Only depend on IDs to prevent unnecessary re-renders
+	}, [selectedSpace?.id, user?.id, allTasks.length]); // Depend on allTasks.length to ensure we refetch when tasks are updated
 
 	// Handle edit task from URL parameter
 	useEffect(() => {

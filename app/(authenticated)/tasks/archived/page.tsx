@@ -47,12 +47,12 @@ export default function ArchivedTasksPage() {
 	const router = useRouter();
 	const { t } = useLanguage();
 	const { user } = useAuth();
-	const { 
-		tasks: allTasks, 
-		refreshTasks, 
-		updateTask: coreUpdateTask, 
+	const {
+		tasks: allTasks,
+		refreshTasks,
+		updateTask: coreUpdateTask,
 		getTasksBySpace,
-		selectedSpace 
+		selectedSpace,
 	} = useCore();
 
 	// State for tasks
@@ -76,8 +76,23 @@ export default function ArchivedTasksPage() {
 	// State for drag and drop
 	const [draggedTask, setDraggedTask] = useState<Task | null>(null);
 
-	// Fetch tasks when selectedSpace or allTasks changes
+	// Initial load effect - ensures tasks are loaded when the component mounts
 	useEffect(() => {
+		console.log("Initial archived tasks loading effect triggered");
+		if (!allTasks.length) {
+			console.log("No tasks in CoreContext, forcing refresh for archived page");
+			refreshTasks().then(() => {
+				console.log("Tasks refreshed from API for archived page");
+				fetchTasks();
+			});
+		} else {
+			fetchTasks();
+		}
+	}, []); // Empty dependency array ensures this runs once on mount
+
+	// Re-fetch tasks when selectedSpace or allTasks changes
+	useEffect(() => {
+		console.log("Selected space or tasks changed, fetching archived tasks");
 		fetchTasks();
 	}, [selectedSpace, allTasks.length]);
 
@@ -99,7 +114,7 @@ export default function ArchivedTasksPage() {
 				// Filter tasks assigned to the user and only get archived ones (COMPLETED status)
 				const archivedToMeTasks = spaceTasks.filter((task) => {
 					if (!task.assigned_users || !user?.id) return false;
-					
+
 					// Check if task is assigned to current user
 					const isAssignedToUser = task.assigned_users.some((u) => {
 						// If u is a string (user ID)
@@ -116,10 +131,14 @@ export default function ArchivedTasksPage() {
 					});
 
 					// Only return tasks that are assigned to user AND have COMPLETED status
-					return isAssignedToUser && task.status === TaskStatusBackend.COMPLETED;
+					return (
+						isAssignedToUser && task.status === TaskStatusBackend.COMPLETED
+					);
 				});
 				setTasksToMe(archivedToMeTasks);
-				console.log(`Found ${archivedToMeTasks.length} archived tasks assigned to me`);
+				console.log(
+					`Found ${archivedToMeTasks.length} archived tasks assigned to me`
+				);
 
 				// Filter tasks created by the user and only get archived ones
 				const archivedByMeTasks = spaceTasks.filter((task) => {
@@ -134,14 +153,17 @@ export default function ArchivedTasksPage() {
 
 					// If created_by is a User object with id
 					if (typeof task.created_by === "object" && task.created_by.id) {
-						isCreatedByUser = task.created_by.id.toString() === user.id.toString();
+						isCreatedByUser =
+							task.created_by.id.toString() === user.id.toString();
 					}
 
 					// Only return tasks that are created by user AND have COMPLETED status
 					return isCreatedByUser && task.status === TaskStatusBackend.COMPLETED;
 				});
 				setTasksByMe(archivedByMeTasks);
-				console.log(`Found ${archivedByMeTasks.length} archived tasks created by me`);
+				console.log(
+					`Found ${archivedByMeTasks.length} archived tasks created by me`
+				);
 			}
 
 			setError(null);
@@ -163,17 +185,18 @@ export default function ArchivedTasksPage() {
 		try {
 			// Update task status to TODO (1) to mark it as unarchived
 			const updatedTask = await coreUpdateTask(Number(task.id), {
-				status: 1 // TaskStatusBackend.TODO
+				status: 1, // TaskStatusBackend.TODO
 			} as any);
 
-			console.log('Task unarchived successfully:', updatedTask);
+			console.log("Task unarchived successfully:", updatedTask);
 
 			// Update the local state to remove the unarchived task
-			const isTaskByMe = typeof task.created_by === "string"
-				? task.created_by === user?.id?.toString()
-				: task.created_by?.id?.toString() === user?.id?.toString();
+			const isTaskByMe =
+				typeof task.created_by === "string"
+					? task.created_by === user?.id?.toString()
+					: task.created_by?.id?.toString() === user?.id?.toString();
 
-			const isTaskToMe = task.assigned_users?.some(u => {
+			const isTaskToMe = task.assigned_users?.some((u) => {
 				if (typeof u === "string") return u === user?.id?.toString();
 				return u?.id?.toString() === user?.id?.toString();
 			});
@@ -205,14 +228,15 @@ export default function ArchivedTasksPage() {
 				priority: newPriority,
 			} as any);
 
-			console.log('Task priority updated successfully:', updatedTask);
+			console.log("Task priority updated successfully:", updatedTask);
 
 			// Update local state
-			const isTaskByMe = typeof task.created_by === "string"
-				? task.created_by === user?.id?.toString()
-				: task.created_by?.id?.toString() === user?.id?.toString();
+			const isTaskByMe =
+				typeof task.created_by === "string"
+					? task.created_by === user?.id?.toString()
+					: task.created_by?.id?.toString() === user?.id?.toString();
 
-			const isTaskToMe = task.assigned_users?.some(u => {
+			const isTaskToMe = task.assigned_users?.some((u) => {
 				if (typeof u === "string") return u === user?.id?.toString();
 				return u?.id?.toString() === user?.id?.toString();
 			});
