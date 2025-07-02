@@ -105,7 +105,7 @@ export function TaskColumn({
 
 	// Count total assigned users across all tasks
 	const totalAssignedUsers = tasks.reduce((total, task) => {
-		return total + (task.assigned_user?.length || 0);
+		return total + ((Array.isArray(task.assigned_user) ? task.assigned_user : []).length || 0);
 	}, 0);
 	return (
 		<>

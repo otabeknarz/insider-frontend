@@ -404,11 +404,15 @@ export function TaskCard({
 								<div className="text-center p-4 text-red-500">{error}</div>
 							) : (
 								<div className="space-y-3 py-2">
-									{(fullTaskData?.assigned_user ?? task.assigned_user ?? [])
-										.filter(
-											(user: string | User | any) => user && typeof user === "object" && user.id
-										)
-										.map((user: User | any) => (
+									{(() => {
+    // Ensure we have an array before calling filter
+    const assignedUsers = fullTaskData?.assigned_user ?? task.assigned_user ?? [];
+    const userArray = Array.isArray(assignedUsers) ? assignedUsers : 
+                     (assignedUsers ? [assignedUsers] : []);
+    
+    return userArray
+        .filter((user) => user && typeof user === "object" && user.id)
+        .map((user) => (
 											<div
 												key={user.id}
 												className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50"
@@ -494,11 +498,15 @@ export function TaskCard({
 						) : (
 							<div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
 								<div className="space-y-2 py-1">
-									{(fullTaskData?.assigned_user ?? task.assigned_user ?? [])
-										.filter(
-											(user: string | User | any) => user && typeof user === "object" && user.id
-										)
-										.map((user: User | any) => (
+									{(() => {
+    // Ensure we have an array before calling filter
+    const assignedUsers = fullTaskData?.assigned_user ?? task.assigned_user ?? [];
+    const userArray = Array.isArray(assignedUsers) ? assignedUsers : 
+                     (assignedUsers ? [assignedUsers] : []);
+    
+    return userArray
+        .filter((user) => user && typeof user === "object" && user.id)
+        .map((user) => (
 											<div
 												key={user.id}
 												className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50"
