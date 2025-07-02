@@ -654,9 +654,9 @@ export default function TasksPage() {
 			// Also check if the task was assigned to the current user
 			const isTaskToMe =
 				draggedTask.assigned_user?.toString?.() === user?.id?.toString() ||
-				draggedTask.assigned_user?.some((id) => {
+				(Array.isArray(draggedTask.assigned_user) && draggedTask.assigned_user?.some((id) => {
 					return id?.toString() === user?.id?.toString();
-				});
+				}));
 
 			// Update active task lists based on the new status
 			if (isArchiving) {
@@ -753,9 +753,9 @@ export default function TasksPage() {
 
 			const isTaskToMe =
 				task.assigned_user?.toString?.() === user?.id?.toString() ||
-				task.assigned_user?.some((id) => {
+				(Array.isArray(task.assigned_user) && task.assigned_user?.some((id) => {
 					return id?.toString() === user?.id?.toString();
-				});
+				}));
 
 			// Update active task lists by removing the archived task
 			if (isTaskByMe) {

@@ -433,9 +433,9 @@ export default function TeamDetailPage() {
 				team?.id ||
 				null,
 			assigned_user:
-				task.assigned_user?.map((user: any) =>
+				(Array.isArray(task.assigned_user) ? task.assigned_user?.map((user: any) =>
 					typeof user === "object" ? user.id : user
-				) || [],
+				) : task.assigned_user ? [task.assigned_user] : []) || [],
 			deadline: task.deadline || "",
 		});
 

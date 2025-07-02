@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import { formatDate } from "@/lib/date-utils";
-import { Task, TaskStatusBackend, TaskPriorityBackend, User } from "@/lib/types";
+import {
+	Task,
+	TaskStatusBackend,
+	TaskPriorityBackend,
+	User,
+} from "@/lib/types";
 import { Clock, ExternalLink, Pencil, Trash2, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +39,14 @@ interface TaskCardProps {
 	onPriorityChange?: (task: Task, newPriority: number) => void;
 	onArchive?: (task: Task, event?: React.MouseEvent) => void;
 }
+
+// Helper function to ensure we're working with an array
+const ensureArray = (value: any): any[] => {
+	if (value === null || value === undefined) {
+		return [];
+	}
+	return Array.isArray(value) ? value : [value];
+};
 
 export function TaskCard({
 	task,
@@ -309,7 +322,7 @@ export function TaskCard({
 				<div className="flex items-center gap-2 mb-2">
 					<Users className="h-3.5 w-3.5 text-muted-foreground" />
 					<span className="text-xs text-muted-foreground">
-						{task?.assigned_user && task.assigned_user.length > 0 ? (
+						{task?.assigned_user && Array.isArray(task.assigned_user) && task.assigned_user.length > 0 ? (
 							<>
 								{task.assigned_user.length}
 								{task.assigned_user.length === 1
@@ -404,15 +417,12 @@ export function TaskCard({
 								<div className="text-center p-4 text-red-500">{error}</div>
 							) : (
 								<div className="space-y-3 py-2">
-									{(() => {
-    // Ensure we have an array before calling filter
-    const assignedUsers = fullTaskData?.assigned_user ?? task.assigned_user ?? [];
-    const userArray = Array.isArray(assignedUsers) ? assignedUsers : 
-                     (assignedUsers ? [assignedUsers] : []);
-    
-    return userArray
-        .filter((user) => user && typeof user === "object" && user.id)
-        .map((user) => (
+									{ensureArray(fullTaskData?.assigned_user ?? task.assigned_user ?? [])
+										.filter(
+											(user: string | User | any) =>
+												user && typeof user === "object" && user.id
+										)
+										.map((user: User | any) => (
 											<div
 												key={user.id}
 												className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50"
@@ -498,15 +508,12 @@ export function TaskCard({
 						) : (
 							<div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
 								<div className="space-y-2 py-1">
-									{(() => {
-    // Ensure we have an array before calling filter
-    const assignedUsers = fullTaskData?.assigned_user ?? task.assigned_user ?? [];
-    const userArray = Array.isArray(assignedUsers) ? assignedUsers : 
-                     (assignedUsers ? [assignedUsers] : []);
-    
-    return userArray
-        .filter((user) => user && typeof user === "object" && user.id)
-        .map((user) => (
+									{ensureArray(fullTaskData?.assigned_user ?? task.assigned_user ?? [])
+										.filter(
+											(user: string | User | any) =>
+												user && typeof user === "object" && user.id
+										)
+										.map((user: User | any) => (
 											<div
 												key={user.id}
 												className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50"

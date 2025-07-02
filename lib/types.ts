@@ -103,7 +103,7 @@ export interface Task {
 	deadline: string;
 	created_by: User;
 	team: number | null;
-	assigned_user: string[];
+	assigned_user: string[] | User;
 	comments: Comment[];
 }
 

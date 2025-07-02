@@ -105,7 +105,11 @@ export function TaskColumn({
 
 	// Count total assigned users across all tasks
 	const totalAssignedUsers = tasks.reduce((total, task) => {
-		return total + ((Array.isArray(task.assigned_user) ? task.assigned_user : []).length || 0);
+		return (
+			total +
+			((Array.isArray(task.assigned_user) ? task.assigned_user : []).length ||
+				0)
+		);
 	}, 0);
 	return (
 		<>
@@ -176,32 +180,37 @@ export function TaskColumn({
 													{task.name}
 												</h3>
 												{task.assigned_user &&
-												task.assigned_user.length > 0 ? (
+												(Array.isArray(task.assigned_user)
+													? task.assigned_user.length > 0
+													: true) ? (
 													<div className="space-y-2">
-														{task.assigned_user.map((user: string | User | any) => (
-															<div
-																key={user.id}
-																className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50"
-															>
-																<Avatar className="h-8 w-8">
-																	<AvatarFallback className="text-xs">
-																		{getInitials(user)}
-																	</AvatarFallback>
-																</Avatar>
-																<div className="flex-1 min-w-0">
-																	<p className="text-sm font-medium truncate">{`${user.first_name} ${user.last_name}`}</p>
-																	<p className="text-xs text-muted-foreground truncate">
-																		@{user.username} •{" "}
-																		{user.position?.name || ""}
-																	</p>
-																</div>
-																{user.region && (
-																	<span className="text-xs bg-muted px-2 py-0.5 rounded">
-																		{user.region?.name || ""}
-																	</span>
-																)}
-															</div>
-														))}
+														{Array.isArray(task.assigned_user) &&
+															task.assigned_user.map(
+																(user: string | User | any) => (
+																	<div
+																		key={user.id}
+																		className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50"
+																	>
+																		<Avatar className="h-8 w-8">
+																			<AvatarFallback className="text-xs">
+																				{getInitials(user)}
+																			</AvatarFallback>
+																		</Avatar>
+																		<div className="flex-1 min-w-0">
+																			<p className="text-sm font-medium truncate">{`${user.first_name} ${user.last_name}`}</p>
+																			<p className="text-xs text-muted-foreground truncate">
+																				@{user.username} •{" "}
+																				{user.position?.name || ""}
+																			</p>
+																		</div>
+																		{user.region && (
+																			<span className="text-xs bg-muted px-2 py-0.5 rounded">
+																				{user.region?.name || ""}
+																			</span>
+																		)}
+																	</div>
+																)
+															)}
 													</div>
 												) : (
 													<p className="text-sm text-muted-foreground italic">
@@ -253,26 +262,32 @@ export function TaskColumn({
 											<h3 className="text-sm font-medium border-b pb-1">
 												{task.name}
 											</h3>
-											{task.assigned_user && task.assigned_user.length > 0 ? (
+											{task.assigned_user &&
+											Array.isArray(task.assigned_user) &&
+											task.assigned_user.length > 0 ? (
 												<div className="space-y-2">
-													{task.assigned_user.map((user: string | User | any) => (
-														<div
-															key={user.id}
-															className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50"
-														>
-															<Avatar className="h-8 w-8">
-																<AvatarFallback className="text-xs">
-																	{getInitials(user)}
-																</AvatarFallback>
-															</Avatar>
-															<div className="flex-1 min-w-0">
-																<p className="text-sm font-medium truncate">{`${user.first_name} ${user.last_name}`}</p>
-																<p className="text-xs text-muted-foreground truncate">
-																	@{user.username} • {user.position?.name || ""}
-																</p>
-															</div>
-														</div>
-													))}
+													{Array.isArray(task.assigned_user) &&
+														task.assigned_user.map(
+															(user: string | User | any) => (
+																<div
+																	key={user.id}
+																	className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50"
+																>
+																	<Avatar className="h-8 w-8">
+																		<AvatarFallback className="text-xs">
+																			{getInitials(user)}
+																		</AvatarFallback>
+																	</Avatar>
+																	<div className="flex-1 min-w-0">
+																		<p className="text-sm font-medium truncate">{`${user.first_name} ${user.last_name}`}</p>
+																		<p className="text-xs text-muted-foreground truncate">
+																			@{user.username} •{" "}
+																			{user.position?.name || ""}
+																		</p>
+																	</div>
+																</div>
+															)
+														)}
 												</div>
 											) : (
 												<p className="text-sm text-muted-foreground italic">
