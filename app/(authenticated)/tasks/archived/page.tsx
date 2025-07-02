@@ -113,22 +113,30 @@ export default function ArchivedTasksPage() {
 
 				// Filter tasks assigned to the user and only get archived ones (COMPLETED status)
 				const archivedToMeTasks = spaceTasks.filter((task) => {
-					if (!task.assigned_users || !user?.id) return false;
+					if (
+						!task.assigned_user ||
+						!Array.isArray(task.assigned_user) ||
+						!user?.id
+					)
+						return false;
 
 					// Check if task is assigned to current user
-					const isAssignedToUser = task.assigned_users.some((u) => {
-						// If u is a string (user ID)
-						if (typeof u === "string") {
-							return u === user.id.toString();
-						}
+					const isAssignedToUser = task.assigned_user.some(
+						(u: string | User) => {
+							// If u is a string (user ID)
+							if (typeof u === "string") {
+								return u === user.id.toString();
+							}
 
-						// If u is a User object with id
-						if (u && typeof u === "object" && u.id) {
-							return u.id.toString() === user.id.toString();
-						}
+							// If u is a User object with id
+							if (u && typeof u === "object") {
+								const userObj = u as User;
+								return userObj.id.toString() === user.id.toString();
+							}
 
-						return false;
-					});
+							return false;
+						}
+					);
 
 					// Only return tasks that are assigned to user AND have COMPLETED status
 					return (
@@ -196,10 +204,17 @@ export default function ArchivedTasksPage() {
 					? task.created_by === user?.id?.toString()
 					: task.created_by?.id?.toString() === user?.id?.toString();
 
-			const isTaskToMe = task.assigned_users?.some((u) => {
-				if (typeof u === "string") return u === user?.id?.toString();
-				return u?.id?.toString() === user?.id?.toString();
-			});
+			const isTaskToMe =
+				task.assigned_user && Array.isArray(task.assigned_user)
+					? task.assigned_user.some((u: string | User) => {
+							if (typeof u === "string") return u === user?.id?.toString();
+							if (u && typeof u === "object") {
+								const userObj = u as User;
+								return userObj.id?.toString() === user?.id?.toString();
+							}
+							return false;
+					  })
+					: false;
 
 			// Remove task from the appropriate list
 			if (isTaskByMe) {
@@ -236,10 +251,17 @@ export default function ArchivedTasksPage() {
 					? task.created_by === user?.id?.toString()
 					: task.created_by?.id?.toString() === user?.id?.toString();
 
-			const isTaskToMe = task.assigned_users?.some((u) => {
-				if (typeof u === "string") return u === user?.id?.toString();
-				return u?.id?.toString() === user?.id?.toString();
-			});
+			const isTaskToMe =
+				task.assigned_user && Array.isArray(task.assigned_user)
+					? task.assigned_user.some((u: string | User) => {
+							if (typeof u === "string") return u === user?.id?.toString();
+							if (u && typeof u === "object") {
+								const userObj = u as User;
+								return userObj.id?.toString() === user?.id?.toString();
+							}
+							return false;
+					  })
+					: false;
 
 			// Update the appropriate task list
 			if (isTaskByMe) {

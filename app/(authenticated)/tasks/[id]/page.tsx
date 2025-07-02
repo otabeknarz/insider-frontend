@@ -171,11 +171,30 @@ export default function TaskDetailPage() {
 
   const getUserInitials = (user: User | number): string => {
     if (typeof user === 'number') {
-      // If user is an ID, find the user object in assigned_users
-      if (!task?.assigned_users) return "";
-      const userObj = task.assigned_users.find(u => Number(u.id) === user);
+      // If user is an ID, find the user object in assigned_user
+      if (!task?.assigned_user || !Array.isArray(task.assigned_user)) return "";
+      
+      // Handle the case where assigned_user might contain user objects or just string IDs
+      const userObj = task.assigned_user.find((u: string | User) => {
+        if (typeof u === 'string') {
+          return Number(u) === user;
+        } else if (typeof u === 'object' && u !== null) {
+          return Number(u.id) === user;
+        }
+        return false;
+      });
+      
       if (!userObj) return "";
-      return `${userObj.first_name?.[0] || ""}${userObj.last_name?.[0] || ""}`;
+      
+      // Handle the case where userObj might be a string ID or a User object
+      if (typeof userObj === 'string') {
+        // If it's just a string ID, we can't get initials
+        return "";
+      } else {
+        // If it's a User object, get initials from first_name and last_name
+        const userAsObj = userObj as User;
+        return `${userAsObj.first_name?.[0] || ""}${userAsObj.last_name?.[0] || ""}`;
+      }
     }
     // If user is already a User object
     return `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`;
@@ -364,10 +383,13 @@ export default function TaskDetailPage() {
                           {t("tasks.assignedTo") || "Assigned To"}
                         </h3>
                         <div className="flex flex-wrap gap-2 mb-2">
-                          {task?.assigned_users && task.assigned_users.length > 0 ? (
+                          {task?.assigned_user && Array.isArray(task.assigned_user) && task.assigned_user.length > 0 ? (
                             <>
                               <div className="flex flex-wrap gap-2">
-                                {task.assigned_users.slice(0, 3).map((user) => (
+                                {task.assigned_user.slice(0, 3).map((user: User | string) => {
+                                  // Skip string IDs, only render User objects
+                                  if (typeof user === 'string') return null;
+                                  return (
                                   <div
                                     key={user.id}
                                     className="flex items-center gap-2 bg-muted p-1 px-2 rounded-md"
@@ -379,10 +401,11 @@ export default function TaskDetailPage() {
                                     </Avatar>
                                     <span className="text-sm">{`${user.first_name} ${user.last_name}`}</span>
                                   </div>
-                                ))}
-                                {task.assigned_users.length > 3 && (
+                                );
+                                })}
+                                {task.assigned_user.length > 3 && (
                                   <div className="flex items-center gap-2 bg-muted p-1 px-2 rounded-md">
-                                    <span className="text-sm">+{task.assigned_users.length - 3} more</span>
+                                    <span className="text-sm">+{task.assigned_user.length - 3} more</span>
                                   </div>
                                 )}
                               </div>
@@ -476,8 +499,11 @@ export default function TaskDetailPage() {
             <div className="px-4 py-2">
               <ScrollArea className="h-[50vh]">
                 <div className="space-y-4">
-                  {task && task.assigned_users && task.assigned_users.length > 0 ? (
-                    task.assigned_users.map((user) => (
+                  {task && task.assigned_user && Array.isArray(task.assigned_user) && task.assigned_user.length > 0 ? (
+                    task.assigned_user.map((user: User | string) => {
+                      // Skip string IDs, only render User objects
+                      if (typeof user === 'string') return null;
+                      return (
                       <div
                         key={user.id}
                         className="flex items-center gap-3 p-3 border-b border-border/50 last:border-0"
@@ -495,7 +521,8 @@ export default function TaskDetailPage() {
                           )}
                         </div>
                       </div>
-                    ))
+                    );
+                    })
                   ) : (
                     <p className="text-center py-4 text-muted-foreground">
                       {t("tasks.noUsersAssigned") || "No users assigned to this task"}
@@ -525,29 +552,33 @@ export default function TaskDetailPage() {
             </DialogHeader>
             <ScrollArea className="h-[50vh] mt-4">
               <div className="space-y-4">
-                {task && task.assigned_users && task.assigned_users.length > 0 ? (
-                  task.assigned_users.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center gap-3 p-3 border-b border-border/50 last:border-0"
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback>
-                          {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{`${user.first_name} ${user.last_name}`}</p>
-                        <p className="text-sm text-muted-foreground">{user.username}</p>
-                        {user.position && (
-                          <p className="text-xs text-muted-foreground mt-1">{user.position.name}</p>
-                        )}
-                        {user.region && (
-                          <p className="text-xs text-muted-foreground">{user.region.name}</p>
-                        )}
+                {task && task.assigned_user && Array.isArray(task.assigned_user) && task.assigned_user.length > 0 ? (
+                  task.assigned_user.map((user: User | string) => {
+                    // Skip string IDs, only render User objects
+                    if (typeof user === 'string') return null;
+                    return (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-3 p-3 border-b border-border/50 last:border-0"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback>
+                            {user.first_name.charAt(0).toUpperCase() + user.last_name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{`${user.first_name} ${user.last_name}`}</p>
+                          <p className="text-sm text-muted-foreground">{user.username}</p>
+                          {user.position && (
+                            <p className="text-xs text-muted-foreground mt-1">{user.position.name}</p>
+                          )}
+                          {user.region && (
+                            <p className="text-xs text-muted-foreground">{user.region.name}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-center py-4 text-muted-foreground">
                     {t("tasks.noUsersAssigned") || "No users assigned to this task"}

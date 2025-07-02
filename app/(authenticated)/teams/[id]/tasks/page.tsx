@@ -41,7 +41,7 @@ interface TaskFormData {
   is_checked: boolean;
   priority: TaskPriorityBackend;
   team: number | null;
-  assigned_users: string[];
+  assigned_user: string[] | string | null;
   deadline: string | null;
 }
 
@@ -116,7 +116,7 @@ export default function TeamTasksPage() {
     is_checked: false,
     priority: TaskPriorityBackend.MEDIUM,
     team: null,
-    assigned_users: [],
+    assigned_user: [],
     deadline: null,
   });
 
@@ -246,10 +246,10 @@ export default function TeamTasksPage() {
       const taskData = {
         ...formData,
         team: team?.id || null,
-        // Ensure assigned_users is properly formatted as an array of strings
-        assigned_users: formData.assigned_users.map((userId: string | number | { id: string | number }) => 
+        // Ensure assigned_user is properly formatted as an array of strings
+        assigned_user: formData.assigned_user && Array.isArray(formData.assigned_user) ? formData.assigned_user.map((userId: string | number | { id: string | number }) => 
           typeof userId === 'object' ? userId.id.toString() : userId.toString()
-        )
+        ) : []
       };
       
       if (selectedTask) {
@@ -277,7 +277,7 @@ export default function TeamTasksPage() {
         is_checked: false,
         priority: TaskPriorityBackend.MEDIUM,
         team: null,
-        assigned_users: [],
+        assigned_user: [],
         deadline: null,
       });
       
@@ -301,7 +301,7 @@ export default function TeamTasksPage() {
       is_checked: false,
       priority: TaskPriorityBackend.MEDIUM,
       team: team?.id || null,
-      assigned_users: [],
+      assigned_user: [],
       deadline: null,
     });
     
@@ -332,12 +332,12 @@ export default function TeamTasksPage() {
         }
         return null;
       })(),
-      // Handle assigned_users which could be an array of User objects or strings
-      assigned_users: (() => {
-        if (!task.assigned_users) return [];
-        if (!Array.isArray(task.assigned_users)) return [];
+      // Handle assigned_user which could be an array of User objects or strings
+      assigned_user: (() => {
+        if (!task.assigned_user) return [];
+        if (!Array.isArray(task.assigned_user)) return [];
         
-        return task.assigned_users.map(user => {
+        return task.assigned_user.map(user => {
           if (typeof user === 'string') return user;
           if (user && typeof user === 'object') {
             const userObj = user as { id?: number | string };

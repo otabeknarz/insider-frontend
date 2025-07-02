@@ -105,7 +105,7 @@ export function TaskColumn({
 
 	// Count total assigned users across all tasks
 	const totalAssignedUsers = tasks.reduce((total, task) => {
-		return total + (task.assigned_users?.length || 0);
+		return total + (task.assigned_user?.length || 0);
 	}, 0);
 	return (
 		<>
@@ -175,10 +175,10 @@ export function TaskColumn({
 												<h3 className="text-sm font-medium border-b pb-1">
 													{task.name}
 												</h3>
-												{task.assigned_users &&
-												task.assigned_users.length > 0 ? (
+												{task.assigned_user &&
+												task.assigned_user.length > 0 ? (
 													<div className="space-y-2">
-														{task.assigned_users.map((user) => (
+														{task.assigned_user.map((user: string | User | any) => (
 															<div
 																key={user.id}
 																className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50"
@@ -253,9 +253,9 @@ export function TaskColumn({
 											<h3 className="text-sm font-medium border-b pb-1">
 												{task.name}
 											</h3>
-											{task.assigned_users && task.assigned_users.length > 0 ? (
+											{task.assigned_user && task.assigned_user.length > 0 ? (
 												<div className="space-y-2">
-													{task.assigned_users.map((user) => (
+													{task.assigned_user.map((user: string | User | any) => (
 														<div
 															key={user.id}
 															className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50"

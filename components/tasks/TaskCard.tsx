@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useLanguage } from "@/lib/language-provider";
 import { formatDate } from "@/lib/date-utils";
-import { Task, TaskStatusBackend, TaskPriorityBackend } from "@/lib/types";
+import { Task, TaskStatusBackend, TaskPriorityBackend, User } from "@/lib/types";
 import { Clock, ExternalLink, Pencil, Trash2, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -189,11 +189,11 @@ export function TaskCard({
 										await fetchFullTaskData();
 
 										// Create a modified task object with the full user data
-										if (fullTaskData && fullTaskData.assigned_users) {
-											// Create a new task object with the complete assigned_users array
+										if (fullTaskData && fullTaskData.assigned_user) {
+											// Create a new task object with the complete assigned_user array
 											const enhancedTask = {
 												...task,
-												assigned_users: fullTaskData.assigned_users,
+												assigned_user: fullTaskData.assigned_user,
 											};
 											onEdit(enhancedTask);
 										} else {
@@ -309,10 +309,10 @@ export function TaskCard({
 				<div className="flex items-center gap-2 mb-2">
 					<Users className="h-3.5 w-3.5 text-muted-foreground" />
 					<span className="text-xs text-muted-foreground">
-						{task?.assigned_users && task.assigned_users.length > 0 ? (
+						{task?.assigned_user && task.assigned_user.length > 0 ? (
 							<>
-								{task.assigned_users.length}
-								{task.assigned_users.length === 1
+								{task.assigned_user.length}
+								{task.assigned_user.length === 1
 									? t("tasks.assignedUser") || "assigned user"
 									: t("tasks.assignedUsers") || "assigned users"}
 							</>
@@ -404,11 +404,11 @@ export function TaskCard({
 								<div className="text-center p-4 text-red-500">{error}</div>
 							) : (
 								<div className="space-y-3 py-2">
-									{(fullTaskData?.assigned_users ?? task.assigned_users ?? [])
+									{(fullTaskData?.assigned_user ?? task.assigned_user ?? [])
 										.filter(
-											(user) => user && typeof user === "object" && user.id
+											(user: string | User | any) => user && typeof user === "object" && user.id
 										)
-										.map((user) => (
+										.map((user: User | any) => (
 											<div
 												key={user.id}
 												className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50"
@@ -494,11 +494,11 @@ export function TaskCard({
 						) : (
 							<div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
 								<div className="space-y-2 py-1">
-									{(fullTaskData?.assigned_users ?? task.assigned_users ?? [])
+									{(fullTaskData?.assigned_user ?? task.assigned_user ?? [])
 										.filter(
-											(user) => user && typeof user === "object" && user.id
+											(user: string | User | any) => user && typeof user === "object" && user.id
 										)
-										.map((user) => (
+										.map((user: User | any) => (
 											<div
 												key={user.id}
 												className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted/50"
