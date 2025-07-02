@@ -1,6 +1,6 @@
 import React from "react";
 import { useLanguage } from "@/lib/language-provider";
-import { Task, Team, User, TaskPriorityBackend } from "@/lib/types";
+import { Task, Team, User, TaskPriorityBackend, TaskFormData } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -12,20 +12,9 @@ import {
 } from "@/components/ui/select";
 import { UserMultiSelect } from "./UserMultiSelect";
 
-interface FormData {
-	name: string;
-	description: string;
-	status: number;
-	is_checked: boolean;
-	priority: number;
-	team: number | null;
-	assigned_users: string[];
-	deadline: string;
-}
-
 interface TaskFormProps {
-	formData: FormData;
-	setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+	formData: TaskFormData;
+	setFormData: React.Dispatch<React.SetStateAction<TaskFormData>>;
 	handleChange: (
 		e: React.ChangeEvent<
 			HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -253,11 +242,11 @@ export function TaskForm({
 					</label>
 					<UserMultiSelect
 						users={users}
-						selectedUserIds={formData.assigned_users}
+						selectedUserIds={Array.isArray(formData.assigned_user) ? formData.assigned_user : formData.assigned_user ? [formData.assigned_user] : []}
 						onSelectionChange={(selectedIds) =>
 							setFormData((prev) => ({
 								...prev,
-								assigned_users: selectedIds,
+								assigned_user: selectedIds,
 							}))
 						}
 						placeholderText={selectAssignedUsersPlaceholder}

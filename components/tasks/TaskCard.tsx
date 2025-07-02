@@ -404,7 +404,7 @@ export function TaskCard({
 								<div className="text-center p-4 text-red-500">{error}</div>
 							) : (
 								<div className="space-y-3 py-2">
-									{(fullTaskData?.assigned_users || task.assigned_users)
+									{(fullTaskData?.assigned_users ?? task.assigned_users ?? [])
 										.filter(
 											(user) => user && typeof user === "object" && user.id
 										)
@@ -494,7 +494,7 @@ export function TaskCard({
 						) : (
 							<div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
 								<div className="space-y-2 py-1">
-									{(fullTaskData?.assigned_users || task.assigned_users)
+									{(fullTaskData?.assigned_users ?? task.assigned_users ?? [])
 										.filter(
 											(user) => user && typeof user === "object" && user.id
 										)

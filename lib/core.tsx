@@ -175,18 +175,36 @@ export const CoreProvider = ({ children }: { children: ReactNode }) => {
 		}
 	};
 
-	// Add a new task
+	// Add a new task using bulk endpoint
 	const addTask = async (task: Partial<Task>): Promise<Task | null> => {
 		try {
-			const response = await ApiService.request<Task>({
+			// Check if we have assigned_user as an array for bulk creation
+			const isBulkCreation =
+				Array.isArray(task.assigned_user) && task.assigned_user.length > 0;
+			const url = isBulkCreation ? "/api/core/tasks/bulk/" : "/api/core/tasks/";
+
+			console.log(isBulkCreation);
+			console.log(task);
+
+			const response = await ApiService.request<Task | Task[]>({
 				method: "post",
-				url: "/api/core/tasks/",
+				url,
 				data: task,
 			});
 
-			const newTask = response.data;
-			setTasks((prev) => [...prev, newTask]);
-			return newTask;
+			// Handle response which could be a single task or an array of tasks
+			if (Array.isArray(response.data)) {
+				// For bulk creation, add all created tasks to state
+				const newTasks = response.data;
+				setTasks((prev) => [...prev, ...newTasks]);
+				// Return the first task as a representative
+				return newTasks[0] || null;
+			} else {
+				// For single task creation
+				const newTask = response.data;
+				setTasks((prev) => [...prev, newTask]);
+				return newTask;
+			}
 		} catch (err) {
 			console.error("Error adding task:", err);
 			setError("Failed to add task");

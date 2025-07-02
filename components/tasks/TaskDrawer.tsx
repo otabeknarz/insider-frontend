@@ -1,6 +1,6 @@
 import React from "react";
 import { useLanguage } from "@/lib/language-provider";
-import { Task } from "@/lib/types";
+import { Task, TaskFormData } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
 	Drawer,
@@ -12,22 +12,11 @@ import {
 } from "@/components/ui/drawer";
 import { TaskForm } from "./TaskForm";
 
-interface FormData {
-	name: string;
-	description: string;
-	status: number;
-	is_checked: boolean;
-	priority: number;
-	team: number | null;
-	assigned_users: string[];
-	deadline: string;
-}
-
 interface TaskDrawerProps {
 	isOpen: boolean;
 	setIsOpen: (open: boolean) => void;
-	formData: FormData;
-	setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+	formData: TaskFormData;
+	setFormData: React.Dispatch<React.SetStateAction<TaskFormData>>;
 	handleChange: (
 		e: React.ChangeEvent<
 			HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement

@@ -33,17 +33,20 @@ export function UserMultiSelect({
   onUserSearchChange,
   loadingUsers,
 }: UserMultiSelectProps) {
+  // Ensure selectedUserIds is always an array, even if it's undefined
+  const safeSelectedUserIds = selectedUserIds || [];
+  
   // Filter out already selected users
   const filteredUsers = users.filter(
-    (user) => !selectedUserIds.includes(user.id.toString())
+    (user) => !safeSelectedUserIds.includes(user.id.toString())
   );
 
   return (
     <div className="space-y-2">
       {/* Display selected users as tags */}
-      {selectedUserIds.length > 0 && (
+      {safeSelectedUserIds.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {selectedUserIds.map((userId) => {
+          {safeSelectedUserIds.map((userId) => {
             const user = users.find((u) => u.id.toString() === userId);
             return user ? (
               <div
@@ -56,7 +59,7 @@ export function UserMultiSelect({
                   className="ml-1 text-primary hover:text-primary/80"
                   onClick={() => {
                     onSelectionChange(
-                      selectedUserIds.filter((id) => id !== userId)
+                      safeSelectedUserIds.filter((id) => id !== userId)
                     );
                   }}
                 >
@@ -73,8 +76,8 @@ export function UserMultiSelect({
         name="user_select"
         value=""
         onValueChange={(value) => {
-          if (value && !selectedUserIds.includes(value)) {
-            onSelectionChange([...selectedUserIds, value]);
+          if (value && !safeSelectedUserIds.includes(value)) {
+            onSelectionChange([...safeSelectedUserIds, value]);
           }
         }}
       >

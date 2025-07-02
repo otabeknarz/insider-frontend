@@ -3,14 +3,14 @@
 /**
  * Space-related interfaces
  */
-export type SpaceType = 'all' | 'individual' | 'team' | 'custom';
+export type SpaceType = "all" | "individual" | "team" | "custom";
 
 export interface Space {
-  id: string;
-  name: string;
-  type: SpaceType;
-  teamId?: number; // Only for team spaces
-  customId?: string; // For custom spaces from backend
+	id: string;
+	name: string;
+	type: SpaceType;
+	teamId?: number; // Only for team spaces
+	customId?: string; // For custom spaces from backend
 }
 
 /**
@@ -34,6 +34,7 @@ export interface District {
 
 export interface User {
 	id: number;
+	user_id?: number;
 	username: string;
 	email?: string;
 	first_name: string;
@@ -102,7 +103,7 @@ export interface Task {
 	deadline: string;
 	created_by: User;
 	team: number | null;
-	assigned_users: User[];
+	assigned_user: string[];
 	comments: Comment[];
 }
 
@@ -193,6 +194,24 @@ export const taskPriorityReverseMapping: Record<
  * Utility functions for converting between backend and frontend representations
  */
 
+/**
+ * Shared form data type for task create/edit forms
+ * We avoid naming this `FormData` to prevent collision with the global `FormData` DOM interface.
+ */
+export interface TaskFormData {
+	name: string;
+	description: string;
+	status: number;
+	is_checked: boolean;
+	priority: number;
+	team: number | null;
+	/** Both single assignee and array of assignees */
+	assigned_user: string[] | string | null;
+	/** Single primary assignee ID */
+	primary_assignee?: string | null;
+	deadline: string;
+}
+
 // Convert backend task to frontend display format
 export function convertTaskToDisplayFormat(task: Task): TaskDisplay {
 	return {
@@ -204,7 +223,51 @@ export function convertTaskToDisplayFormat(task: Task): TaskDisplay {
 			taskPriorityMapping[task.priority as TaskPriorityBackend] || "medium",
 		dueDate: task.deadline,
 		team: task.team,
-		assignedUsers: task.assigned_users,
+		assignedUsers: ((): User[] | undefined => {
+			if (task.assigned_user) {
+				// If it's already a User object
+				if (
+					typeof task.assigned_user === "object" &&
+					!Array.isArray(task.assigned_user)
+				) {
+					return [task.assigned_user as User];
+				}
+				// If it's an array of numbers
+				if (Array.isArray(task.assigned_user)) {
+					return task.assigned_user.map(
+						(userId) =>
+							({
+								id: Number(userId),
+								username: "",
+								first_name: "",
+								last_name: "",
+								position: {} as Position,
+								region: {} as Region,
+								district: {} as District,
+								created_at: "",
+								updated_at: "",
+								date_joined: "",
+							} as User)
+					);
+				}
+				// If it's a single ID
+				return [
+					{
+						id: Number(task.assigned_user),
+						username: "",
+						first_name: "",
+						last_name: "",
+						position: {} as Position,
+						region: {} as Region,
+						district: {} as District,
+						created_at: "",
+						updated_at: "",
+						date_joined: "",
+					} as User,
+				];
+			}
+			return undefined;
+		})(),
 	};
 }
 
@@ -215,6 +278,9 @@ export function convertTaskToApiFormat(task: TaskDisplay): Partial<Task> {
 		name: task.title,
 		description: task.description,
 		status: taskStatusReverseMapping[task.status],
+		assigned_user: Array.isArray(task.assignedUsers)
+			? undefined
+			: task.assignedUsers,
 		priority: taskPriorityReverseMapping[task.priority],
 		deadline: task.dueDate,
 		team: task.team,
@@ -225,42 +291,42 @@ export function convertTaskToApiFormat(task: TaskDisplay): Partial<Task> {
  * Space-related interfaces
  */
 export interface SpaceContextType {
-  spaces: Space[];
-  selectedSpace: Space | null;
-  setSelectedSpace: (space: Space) => void;
-  getSpaceById: (id: string) => Space | undefined;
+	spaces: Space[];
+	selectedSpace: Space | null;
+	setSelectedSpace: (space: Space) => void;
+	getSpaceById: (id: string) => Space | undefined;
 }
 
 /**
  * Core context interface
  */
 export interface CoreContextType {
-  // Teams
-  teams: Team[];
-  selectedTeam: Team | null;
-  setSelectedTeam: (team: Team | null) => void;
-  refreshTeams: () => Promise<void>;
-  
-  // Tasks
-  tasks: Task[];
-  refreshTasks: () => Promise<void>;
-  getTasksBySpace: (spaceId: string) => Task[];
-  addTask: (task: Partial<Task>) => Promise<Task | null>;
-  updateTask: (taskId: number, updates: Partial<Task>) => Promise<Task | null>;
-  deleteTask: (taskId: number) => Promise<boolean>;
-  
-  // Users
-  users: User[];
-  refreshUsers: () => Promise<void>;
-  
-  // Spaces
-  spaces: Space[];
-  selectedSpace: Space | null;
-  setSelectedSpace: (space: Space) => void;
-  
-  // Status
-  loading: boolean;
-  error: string | null;
+	// Teams
+	teams: Team[];
+	selectedTeam: Team | null;
+	setSelectedTeam: (team: Team | null) => void;
+	refreshTeams: () => Promise<void>;
+
+	// Tasks
+	tasks: Task[];
+	refreshTasks: () => Promise<void>;
+	getTasksBySpace: (spaceId: string) => Task[];
+	addTask: (task: Partial<Task>) => Promise<Task | null>;
+	updateTask: (taskId: number, updates: Partial<Task>) => Promise<Task | null>;
+	deleteTask: (taskId: number) => Promise<boolean>;
+
+	// Users
+	users: User[];
+	refreshUsers: () => Promise<void>;
+
+	// Spaces
+	spaces: Space[];
+	selectedSpace: Space | null;
+	setSelectedSpace: (space: Space) => void;
+
+	// Status
+	loading: boolean;
+	error: string | null;
 }
 
 /**

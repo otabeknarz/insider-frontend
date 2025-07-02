@@ -31,6 +31,7 @@ import {
 	Team,
 	TaskStatusBackend,
 	TaskPriorityBackend,
+	TaskFormData,
 	Space,
 } from "@/lib/types";
 import { TaskSection } from "@/components/tasks/TaskSection";
@@ -108,25 +109,27 @@ export default function TasksPage() {
 	const [userSearch, setUserSearch] = useState("");
 	const [isMobile, setIsMobile] = useState(false);
 
-	interface FormData {
+	// Legacy interface retained temporarily for reference; not used
+	/* interface _DeprecatedLocalFormData {
 		name: string;
 		description: string;
 		status: number;
 		is_checked: boolean;
 		priority: number;
 		team: number | null;
-		assigned_users: string[];
+		assigned_user: string | null; // single assignee (legacy)
+		assigned_user: string[]; // multiple assignees (preferred)
 		deadline: string;
-	}
+	} */
 
-	const [formData, setFormData] = useState<FormData>({
+	const [formData, setFormData] = useState<TaskFormData>({
 		name: "",
 		description: "",
 		status: TaskStatusBackend.ASSIGNED,
 		is_checked: false,
 		priority: TaskPriorityBackend.MEDIUM,
 		team: null,
-		assigned_users: [],
+		assigned_user: [],
 		deadline: "",
 	});
 	const [users, setUsers] = useState<User[]>([]);
@@ -167,49 +170,18 @@ export default function TasksPage() {
 			const toMeTasks = spaceTasks.filter((task) => {
 				if (!task) return false;
 				if (!user?.id) return false;
-				if (!task.assigned_users) return false;
+				if (!task.assigned_user) return false;
 
-				// Handle different types of assigned_users data
-				let assignedUsers = task.assigned_users;
-				if (!Array.isArray(assignedUsers)) {
-					// If it's not an array, try to convert it
-					try {
-						if (typeof assignedUsers === "string") {
-							assignedUsers = JSON.parse(assignedUsers);
-						} else {
-							return false;
-						}
-					} catch (e) {
-						console.error("Error parsing assigned_users:", e);
-						return false;
-					}
-				}
+				// Ensure assigned_user is an array
+				const assignedUsers = Array.isArray(task.assigned_user)
+					? task.assigned_user
+					: [task.assigned_user];
 
 				return assignedUsers.some((u) => {
-					if (!u) return false;
+					if (u === undefined || u === null) return false;
 
-					// If u is a string (user ID)
-					if (typeof u === "string") {
-						return u === user.id.toString();
-					}
-
-					// If u is a User object with id
-					if (typeof u === "object") {
-						// Handle different object structures that might represent a user
-						const userId = u.id;
-						if (userId) {
-							return userId.toString() === user.id.toString();
-						}
-
-						// Handle non-standard object formats that might be in the data
-						const anyU = u as any;
-						if (anyU.user_id || anyU.userId) {
-							const altId = anyU.user_id || anyU.userId;
-							return altId.toString() === user.id.toString();
-						}
-					}
-
-					return false;
+					// Convert to string for comparison
+					return u.toString() === user.id.toString();
 				});
 			});
 			setTasksToMe(toMeTasks);
@@ -326,10 +298,11 @@ export default function TasksPage() {
 								is_checked: task.is_checked || false,
 								priority: task.priority,
 								team: task.team || null,
-								assigned_users: task.assigned_users
-									? task.assigned_users
-											.filter((user: User) => user && user.id)
-											.map((user: User) => user.id.toString())
+								// Convert assigned_user to the correct format
+								assigned_user: Array.isArray(task.assigned_user)
+									? task.assigned_user.map((id: any) => String(id))
+									: task.assigned_user
+									? [String(task.assigned_user)]
 									: [],
 								deadline: task.deadline,
 							});
@@ -403,9 +376,11 @@ export default function TasksPage() {
 			if (team) {
 				setFormData((prev) => ({
 					...prev,
-					assigned_users: prev.assigned_users.filter((userId) =>
-						team.members.some((member) => member.id.toString() === userId)
-					),
+					assigned_user: Array.isArray(prev.assigned_user)
+						? prev.assigned_user.filter((userId: string) =>
+								team.members.some((member) => member.id.toString() === userId)
+						  )
+						: [],
 				}));
 			}
 		} else {
@@ -423,7 +398,7 @@ export default function TasksPage() {
 			is_checked: false,
 			priority: TaskPriorityBackend.MEDIUM,
 			team: null,
-			assigned_users: [],
+			assigned_user: [], // empty array for new tasks
 			deadline: "",
 		});
 
@@ -459,10 +434,11 @@ export default function TasksPage() {
 			is_checked: task.is_checked || false,
 			priority: task.priority,
 			team: task.team,
-			assigned_users: task.assigned_users
-				? task.assigned_users
-						.filter((user) => user && user.id) // Filter out undefined users or users without id
-						.map((user) => user.id.toString())
+			// Convert assigned_user to the correct format
+			assigned_user: Array.isArray(task.assigned_user)
+				? task.assigned_user.map((id) => String(id))
+				: task.assigned_user
+				? [String(task.assigned_user)]
 				: [],
 			deadline: task.deadline || "",
 		});
@@ -508,24 +484,27 @@ export default function TasksPage() {
 				is_checked: false,
 				priority: Number(formData.priority),
 				team: formData.team ? Number(formData.team) : null,
-				assigned_users: formData.assigned_users,
 				deadline: formData.deadline || null,
 			};
 
-			// Convert string IDs to proper format for API
-			// The API expects assigned_users as an array of IDs, not User objects
-			const apiTaskData = {
-				name: taskData.name,
-				description: taskData.description,
-				status: taskData.status,
-				is_checked: taskData.is_checked,
-				priority: taskData.priority,
-				team: taskData.team,
-				assigned_users: taskData.assigned_users, // This is already an array of IDs
-				deadline: taskData.deadline || undefined,
-			};
+			// Prepare payload for API
+			let apiTaskData;
 
 			if (selectedTask) {
+				// For updates, keep the existing format with assigned_user
+				apiTaskData = {
+					...taskData,
+					// Backend expects an array of user IDs under `assigned_user` for updates
+					assigned_user:
+						formData.assigned_user &&
+						Array.isArray(formData.assigned_user) &&
+						formData.assigned_user.length > 0
+							? formData.assigned_user.map((id) => Number(id))
+							: formData.assigned_user
+							? [Number(formData.assigned_user)]
+							: [],
+				};
+
 				// Update existing task using CoreContext
 				await coreUpdateTask(
 					selectedTask.id,
@@ -533,8 +512,15 @@ export default function TasksPage() {
 				);
 				toast.success(t("tasks.updateSuccess") || "Task updated successfully");
 			} else {
-				// Create new task using CoreContext
-				await coreAddTask(apiTaskData as any); // Use type assertion as a workaround
+				// For new tasks, use the bulk endpoint with assigned_user array
+				apiTaskData = {
+					...taskData,
+					// Pass assigned_user directly to let CoreProvider handle the extraction
+					assigned_user: formData.assigned_user || [],
+				};
+
+				// Create new task(s) using CoreContext with the bulk endpoint
+				await coreAddTask(apiTaskData as any);
 				toast.success(t("tasks.createSuccess") || "Task created successfully");
 			}
 
@@ -581,11 +567,36 @@ export default function TasksPage() {
 			if (success) {
 				// Update UI after successful deletion
 				// Update the appropriate task list based on who created the task
-				const isTaskByMe =
-					taskToDelete.created_by &&
-					user?.id &&
-					taskToDelete.created_by.id.toString() === user.id.toString();
+				// Determine if current user is creator of the task
+				const isTaskByMe = (() => {
+					if (!user?.id || !taskToDelete.created_by) return false;
+					const createdBy = taskToDelete.created_by;
+					if (typeof createdBy === "string") {
+						return createdBy === user.id.toString();
+					}
+					if (typeof createdBy === "object") {
+						const creatorId =
+							(createdBy as any).id ||
+							(createdBy as any).user_id ||
+							(createdBy as any).userId;
+						return creatorId?.toString() === user.id.toString();
+					}
+					return false;
+				})();
 
+				// Also check if the task was assigned to the current user
+				const isTaskToMe = user?.id
+					? taskToDelete.assigned_user?.toString?.() === user.id.toString() ||
+					  (Array.isArray(taskToDelete.assigned_user) &&
+							taskToDelete.assigned_user.some(
+								(id) =>
+									id !== null &&
+									id !== undefined &&
+									id.toString() === user.id.toString()
+							))
+					: false;
+
+				// Update active task lists based on the new status
 				if (isTaskByMe) {
 					setTasksByMe((prevTasks) =>
 						prevTasks.filter((task) => task.id !== taskToDelete.id)
@@ -593,10 +604,6 @@ export default function TasksPage() {
 				}
 
 				// Also update tasksToMe if the task was assigned to the current user
-				const isTaskToMe = taskToDelete.assigned_users?.some(
-					(u) => user?.id && u.id.toString() === user.id.toString()
-				);
-
 				if (isTaskToMe) {
 					setTasksToMe((prevTasks) =>
 						prevTasks.filter((task) => task.id !== taskToDelete.id)
@@ -645,10 +652,11 @@ export default function TasksPage() {
 					: draggedTask.created_by?.id?.toString() === user?.id?.toString();
 
 			// Also check if the task was assigned to the current user
-			const isTaskToMe = draggedTask.assigned_users?.some((u) => {
-				if (typeof u === "string") return u === user?.id?.toString();
-				return u?.id?.toString() === user?.id?.toString();
-			});
+			const isTaskToMe =
+				draggedTask.assigned_user?.toString?.() === user?.id?.toString() ||
+				draggedTask.assigned_user?.some((id) => {
+					return id?.toString() === user?.id?.toString();
+				});
 
 			// Update active task lists based on the new status
 			if (isArchiving) {
@@ -743,10 +751,11 @@ export default function TasksPage() {
 					? task.created_by === user?.id?.toString()
 					: task.created_by?.id?.toString() === user?.id?.toString();
 
-			const isTaskToMe = task.assigned_users?.some((u) => {
-				if (typeof u === "string") return u === user?.id?.toString();
-				return u?.id?.toString() === user?.id?.toString();
-			});
+			const isTaskToMe =
+				task.assigned_user?.toString?.() === user?.id?.toString() ||
+				task.assigned_user?.some((id) => {
+					return id?.toString() === user?.id?.toString();
+				});
 
 			// Update active task lists by removing the archived task
 			if (isTaskByMe) {
