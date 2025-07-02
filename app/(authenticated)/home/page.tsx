@@ -246,8 +246,8 @@ export default function HomePage() {
 											: false;
 
 										// Normalize assignees to an array for display
-										const assignees = Array.isArray(task.assigned_users)
-											? task.assigned_users
+										const assignees = Array.isArray(task.assigned_user)
+											? task.assigned_user
 											: task.assigned_user
 											? [
 													typeof task.assigned_user === "object"
